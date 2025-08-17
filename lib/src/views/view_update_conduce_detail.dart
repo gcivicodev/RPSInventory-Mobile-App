@@ -1,615 +1,462 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
-import 'package:rpsinventory/src/models/m_conduce.dart';
 import 'package:rpsinventory/src/models/m_conduce_detail.dart';
-import 'package:rpsinventory/src/providers/conduce_provider.dart';
-import 'package:rpsinventory/src/views/view_update_conduce.dart';
-import 'package:rpsinventory/src/views/view_update_conduce_detail.dart';
-import 'package:rpsinventory/src/views/view_update_note.dart';
+import 'package:rpsinventory/src/models/m_product.dart';
+import 'package:rpsinventory/src/models/m_warehouse.dart';
+import 'package:rpsinventory/src/providers/product_provider.dart';
+import 'package:rpsinventory/src/providers/products_provider.dart';
+import 'package:rpsinventory/src/providers/warehouses_provider.dart';
+import 'package:rpsinventory/src/views/view_scanner.dart';
+import 'package:rpsinventory/src/views/view_update_conduce_detail_form.dart';
 
 
-class ViewConduceDetail extends ConsumerStatefulWidget {
-  static String path = '/conduce';
-  final int conduceId;
-  final bool showSuccessSnackbar;
+final _selectedWarehouseProvider = StateProvider.autoDispose<int?>((ref) => null);
 
-  const ViewConduceDetail({
-    super.key,
-    required this.conduceId,
-    this.showSuccessSnackbar = false,
-  });
+final _searchQueryProvider = StateProvider.autoDispose<String>((ref) => '');
+
+class ViewUpdateConduceDetail extends ConsumerStatefulWidget {
+  static String path = '/conduce/update';
+  final ConduceDetail conduceDetail;
+
+  const ViewUpdateConduceDetail({super.key, required this.conduceDetail});
 
   @override
-  ConsumerState<ViewConduceDetail> createState() => _ViewConduceDetailState();
+  ConsumerState<ViewUpdateConduceDetail> createState() => _ViewUpdateConduceDetailState();
 }
 
-class _ViewConduceDetailState extends ConsumerState<ViewConduceDetail> {
+class _ViewUpdateConduceDetailState extends ConsumerState<ViewUpdateConduceDetail> {
+  final TextEditingController _searchController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
-
-
-    if (widget.showSuccessSnackbar) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Conduce actualizado'),
-              backgroundColor: Colors.green,
-            ),
-          );
+    // Inicializa la bodega seleccionada si es necesario.
+    // Usamos listenManual para configurar el valor inicial una sola vez.
+    ref.listenManual(warehousesProvider, (previous, next) {
+      if (next.hasValue && next.value!.isNotEmpty) {
+        final warehouses = next.value!;
+        // Solo establece el valor si aún no ha sido seleccionado.
+        if (ref.read(_selectedWarehouseProvider) == null) {
+          ref.read(_selectedWarehouseProvider.notifier).state = warehouses.first.id;
         }
-      });
-    }
+      }
+    });
   }
 
-  void _showMissingProductsSnackbar() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Faltan productos por asignar.'),
-        backgroundColor: Colors.orange,
-      ),
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _scanBarcode() async {
+    final warehouseId = ref.read(_selectedWarehouseProvider);
+
+    if (warehouseId == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, seleccione una bodega antes de escanear.'),
+          backgroundColor: Colors.orangeAccent,
+        ),
+      );
+      return;
+    }
+
+    final checkparams = ProductsByWarehouseParams(
+      warehouseId: warehouseId,
+      hcpcCode: widget.conduceDetail.productHcpcCode,
     );
+    final availableProducts = await ref.read(getProductsByWarehouseProvider(checkparams).future);
+
+    if (availableProducts.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No existen productos disponibles en bodega para escanear.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    final scannedBarcode = await Navigator.push<String?>(
+      context,
+      MaterialPageRoute(builder: (context) => const ViewScanner()),
+    );
+
+    if (scannedBarcode == null || scannedBarcode.isEmpty || !mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    if (kDebugMode) {
+      print(' ========================= Barcode escaneado: $scannedBarcode en Bodega ID: $warehouseId');
+    }
+
+    final params = ProductByBarcodeParams(barcode: scannedBarcode, warehouseId: warehouseId);
+    final product = await ref.read(productByBarcodeNumberAndWarehouseProvider(params).future);
+
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
+
+    if (product != null) {
+      double availableQuantity = product.currentQuantity ?? 0.0;
+      double requestedQuantity = widget.conduceDetail.productQuantity ?? 0.0;
+
+      if (availableQuantity >= requestedQuantity) {
+        // MODIFICADO: Se pasa el warehouseId al navegar al formulario.
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ViewUpdateConduceDetailForm(
+              productId: product.id,
+              conduceDetail: widget.conduceDetail,
+              warehouseId: warehouseId,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cantidad solicitada ($requestedQuantity) mayor a la disponible ($availableQuantity).'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Producto con barcode "$scannedBarcode" no encontrado o sin stock en la bodega seleccionada.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-
-    final conduceAsync = ref.watch(getConduceProvider(widget.conduceId));
     const primaryColor = Color(0xff0088CC);
+    final selectedWarehouseId = ref.watch(_selectedWarehouseProvider);
+    final warehousesAsyncValue = ref.watch(warehousesProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Detalle del Conduce',
+          'Seleccionar Producto',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12.0),
-            child: TextButton(
-              onPressed: () async {
-                final allAssigned = await ref.read(
-                    checkIfConduceDetailsWereAssignedProvider(widget.conduceId)
-                        .future);
-                if (!allAssigned) {
-                  _showMissingProductsSnackbar();
-                  return;
-                }
-                ref.invalidate(getConduceProvider(widget.conduceId));
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ViewUpdateConduce(
-                      conduceId: widget.conduceId,
-                    ),
-                  ),
-                );
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.white,
-              ),
-              child: const Text(
-                'Actualizar conduce',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            onPressed: _scanBarcode,
           ),
         ],
       ),
-      body: conduceAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: $err')),
-        data: (conduceData) {
-          return SingleChildScrollView(
+      body: Column(
+        children: [
+          Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildGeneralInfoCard(context, ref, conduceData),
-                const SizedBox(height: 24),
-                _buildPatientInfoCard(context, conduceData),
-                const SizedBox(height: 24),
-                _buildProductsCard(
-                    context, ref, widget.conduceId, conduceData.details),
-                const SizedBox(height: 24),
-                _buildNotesCard(context, ref, conduceData),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-
-
-
-  Widget _buildGeneralInfoCard(
-      BuildContext context, WidgetRef ref, Conduce conduceData) {
-    String formattedDate = 'No disponible';
-    if (conduceData.createdAt != null) {
-      formattedDate = DateFormat.yMMMMd('es_ES').format(conduceData.createdAt!);
-    }
-
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Información general',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    final allAssigned = await ref.read(
-                        checkIfConduceDetailsWereAssignedProvider(conduceData.id)
-                            .future);
-                    if (!allAssigned) {
-                      _showMissingProductsSnackbar();
-                      return;
-                    }
-                    await ref
-                        .read(updateConduceStatusProvider(conduceData.id).future);
-                    ref.invalidate(getConduceProvider(widget.conduceId));
-                  },
-                  child: const Text('Actualizar Estado'),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, thickness: 1),
-          SizedBox(
-            width: double.infinity,
-            child: DataTable(
-              columns: const [
-                DataColumn(
-                    label: Text('No.',
-                        style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(
-                    label: Text('PO Number',
-                        style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(
-                    label: Text('Tipo',
-                        style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(
-                    label: Text('Estado',
-                        style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(
-                    label: Text('Fecha',
-                        style: TextStyle(fontWeight: FontWeight.bold))),
-              ],
-              rows: [
-                DataRow(cells: [
-                  DataCell(Text(conduceData.id.toString())),
-                  DataCell(Text(conduceData.poNumber ?? 'N/A')),
-                  DataCell(Text(conduceData.serviceType ?? 'N/A')),
-                  DataCell(_buildStatusChip(conduceData.status)),
-                  DataCell(Text(formattedDate)),
-                ]),
-              ],
-              columnSpacing: 16,
-              horizontalMargin: 16,
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPatientInfoCard(BuildContext context, Conduce conduceData) {
-    String formattedDob = 'No disponible';
-    if (conduceData.patientDob != null) {
-      formattedDob = DateFormat.yMMMMd('es_ES').format(conduceData.patientDob!);
-    }
-
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              'Información del paciente',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const Divider(height: 1, thickness: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Table(
-              columnWidths: const <int, TableColumnWidth>{
-                0: FlexColumnWidth(2),
-                1: FlexColumnWidth(2),
-                2: FlexColumnWidth(2.5),
-                3: FlexColumnWidth(2),
-                4: FlexColumnWidth(3.5),
-              },
-              children: [
-                TableRow(
-                  children: [
-                    _buildTableHeader('ID Paciente'),
-                    _buildTableHeader('No. Contrato'),
-                    _buildTableHeader('Paciente'),
-                    _buildTableHeader('Teléfono'),
-                    _buildTableHeader('Dirección'),
-                  ],
-                ),
-                TableRow(
-                  children: [
-                    _buildTableCell(conduceData.recordNumber ?? 'N/A'),
-                    _buildTableCell(conduceData.patientPlanNumber ?? 'N/A'),
-                    _buildTableCell(conduceData.patientName ?? 'N/A'),
-                    _buildTableCell(conduceData.patientPhone ?? 'N/A'),
-                    _buildTableCell(conduceData.patientAddress ?? 'N/A'),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, thickness: 1, indent: 16, endIndent: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Table(
-              columnWidths: const <int, TableColumnWidth>{
-                0: FlexColumnWidth(),
-                1: FlexColumnWidth(),
-                2: FlexColumnWidth(1.5),
-                3: FlexColumnWidth(),
-                4: FlexColumnWidth(),
-                5: FlexColumnWidth(),
-              },
-              children: [
-                TableRow(
-                  children: [
-                    _buildTableHeader('Ciudad'),
-                    _buildTableHeader('Estado'),
-                    _buildTableHeader('Nacimiento'),
-                    _buildTableHeader('Sexo'),
-                    _buildTableHeader('Peso'),
-                    _buildTableHeader('Altura'),
-                  ],
-                ),
-                TableRow(
-                  children: [
-                    _buildTableCell(conduceData.physicalCity ?? 'N/A'),
-                    _buildTableCell(conduceData.physicalState ?? 'N/A'),
-                    _buildTableCell(formattedDob),
-                    _buildTableCell(conduceData.patientSex ?? 'N/A'),
-                    _buildTableCell(
-                        conduceData.patientWeight?.toString() ?? 'N/A'),
-                    _buildTableCell(
-                        conduceData.patientHeight?.toString() ?? 'N/A'),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProductsCard(BuildContext context, WidgetRef ref, int conduceId,
-      List<ConduceDetail> details) {
-    final double totalQuantity =
-    details.fold(0.0, (sum, item) => sum + (item.productQuantity ?? 0));
-
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              'Productos (${totalQuantity.toStringAsFixed(0)})',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const Divider(height: 1, thickness: 1),
-          if (details.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Center(child: Text('No hay productos en este conduce.')),
-            )
-          else
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: details.length,
-              itemBuilder: (context, index) {
-                return _buildProductItem(
-                    context, ref, conduceId, details[index]);
-              },
-              separatorBuilder: (context, index) {
-                return const Column(
-                  children: [
-                    SizedBox(height: 16.0),
-                    Divider(
-                        height: 1, thickness: 1, indent: 16, endIndent: 16),
-                    SizedBox(height: 16.0),
-                  ],
-                );
-              },
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProductItem(
-      BuildContext context, WidgetRef ref, int conduceId, ConduceDetail detail) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
+                _buildInfoSection(context),
+                const SizedBox(height: 16),
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildDetailRow('Código:', detail.productHcpcCode ?? 'N/A'),
-                    const SizedBox(height: 4),
-                    _buildDetailRow(
-                        'Producto:',
-                        detail.productName ??
-                            detail.productHcpcShortDescription ??
-                            'N/A'),
-                    const SizedBox(height: 4),
-                    _buildDetailRow('Tag:', detail.tagNumber ?? 'N/A'),
-                  ],
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ViewUpdateConduceDetail(
-                        conduceDetail: detail,
+                    Expanded(
+                      flex: 2,
+                      child: warehousesAsyncValue.when(
+                        data: (warehouses) {
+                          if (warehouses.isEmpty) {
+                            return const Text('No hay bodegas');
+                          }
+
+                          final isSelectedIdValid = warehouses.any((w) => w.id == selectedWarehouseId);
+                          final displayId = isSelectedIdValid ? selectedWarehouseId : warehouses.first.id;
+
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (ref.read(_selectedWarehouseProvider) == null && warehouses.isNotEmpty) {
+                              ref.read(_selectedWarehouseProvider.notifier).state = displayId;
+                            }
+                          });
+
+                          return DropdownButtonFormField<int>(
+                            value: displayId,
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              labelText: 'Bodega',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12.0),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                            ),
+                            items: warehouses.map((Warehouse warehouse) {
+                              return DropdownMenuItem<int>(
+                                value: warehouse.id,
+                                child: Text(
+                                  warehouse.name ?? 'Sin nombre',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (newValue) {
+                              ref.read(_selectedWarehouseProvider.notifier).state = newValue;
+                            },
+                          );
+                        },
+                        loading: () => const Center(child: CircularProgressIndicator()),
+                        error: (err, stack) => const Text('Error bodegas'),
                       ),
                     ),
-                  );
-                },
-                child: const Text('Asignar producto'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Table(
-            columnWidths: const {
-              0: FlexColumnWidth(),
-              1: FlexColumnWidth(),
-              2: FlexColumnWidth(),
-              3: FlexColumnWidth(),
-              4: FlexColumnWidth(),
-              5: FlexColumnWidth(),
-              6: FlexColumnWidth(1.5),
-            },
-            children: [
-              TableRow(
-                children: [
-                  _buildTableHeader('SKU'),
-                  _buildTableHeader('Tamaño'),
-                  _buildTableHeader('Modelo'),
-                  _buildTableHeader('Número'),
-                  _buildTableHeader('Color'),
-                  _buildTableHeader('Cantidad'),
-                  _buildTableHeader('Deducibles'),
-                ],
-              ),
-              TableRow(
-                children: [
-                  _buildTableCell(detail.productSku ?? 'N/A'),
-                  _buildTableCell(detail.productSize ?? 'N/A'),
-                  _buildTableCell(detail.productModel ?? 'N/A'),
-                  _buildTableCell(detail.productItemNumber ?? 'N/A'),
-                  _buildTableCell(detail.productColor ?? 'N/A'),
-                  _buildTableCell(detail.productQuantity?.toString() ?? 'N/A'),
-                  _buildTableCell(detail.productDeductible ?? 'N/A'),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNotesCard(
-      BuildContext context, WidgetRef ref, Conduce conduceData) {
-
-    final int currentUserId = conduceData.userId ?? -1;
-
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Notas (${conduceData.notes.length})',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () {
-
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ViewUpdateNote(
-                          conduceId: conduceData.id,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 3,
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Filtrar productos...',
+                          prefixIcon: const Icon(Icons.search),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12.0),
+                          ),
                         ),
+                        onChanged: (value) {
+                          ref.read(_searchQueryProvider.notifier).state = value;
+                        },
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.add),
-                  label: const Text('Añadir'),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          const Divider(height: 1, thickness: 1),
-          if (conduceData.notes.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Center(child: Text('No hay notas en este conduce.')),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Table(
-                border: TableBorder(
-                  horizontalInside: BorderSide(
-                    width: 1,
-                    color: Theme.of(context).dividerColor,
-                  ),
-                ),
-                columnWidths: const <int, TableColumnWidth>{
-                  0: FlexColumnWidth(1),
-                  1: FlexColumnWidth(2),
-                  2: FlexColumnWidth(4),
-                  3: FlexColumnWidth(2.5),
-                  4: FlexColumnWidth(1.5),
-                },
-                children: [
-                  TableRow(
-                    children: [
-                      _buildTableHeader('No.'),
-                      _buildTableHeader('Creador'),
-                      _buildTableHeader('Nota'),
-                      _buildTableHeader('Fecha'),
-                      _buildTableHeader(''),
-                    ],
-                  ),
-                  ...conduceData.notes.map((note) {
-                    String formattedDate = 'N/A';
-                    if (note.updatedAt != null) {
-                      formattedDate = DateFormat(
-                          "d 'de' MMMM 'de' yyyy\nh:mm a", 'es_ES')
-                          .format(note.updatedAt!);
-                    }
-
-                    final canEdit = note.userId == currentUserId;
-
-                    return TableRow(
-                      children: [
-                        _buildTableCell(note.id.toString()),
-                        _buildTableCell(note.username ?? 'N/A'),
-                        _buildTableCell(note.note ?? ''),
-                        _buildTableCell(formattedDate),
-                        TableCell(
-                          verticalAlignment: TableCellVerticalAlignment.middle,
-                          child: canEdit
-                              ? TextButton(
-                            child: const Text('Actualizar'),
-                            onPressed: () {
-
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ViewUpdateNote(
-                                    conduceId: conduceData.id,
-                                    conduceNoteId: note.id,
-                                  ),
-                                ),
-                              );
-                            },
-                          )
-                              : const SizedBox.shrink(),
-                        ),
-                      ],
-                    );
-                  }),
-                ],
-              ),
-            ),
+          const Divider(height: 1),
+          Expanded(
+            child: selectedWarehouseId == null
+                ? const Center(child: Text('Por favor, seleccione una bodega.'))
+                : _buildProductList(selectedWarehouseId, primaryColor),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildInfoSection(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text('$label ', style: const TextStyle(fontWeight: FontWeight.bold)),
-        Expanded(child: Text(value)),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: Theme.of(context).textTheme.titleMedium,
+              children: [
+                const TextSpan(text: 'HCPC: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                TextSpan(text: widget.conduceDetail.productHcpcCode ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.normal)),
+              ],
+            ),
+          ),
+        ),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: Theme.of(context).textTheme.titleMedium,
+              children: [
+                const TextSpan(text: 'Cantidad: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                TextSpan(text: widget.conduceDetail.productQuantity?.toString() ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.normal)),
+              ],
+            ),
+          ),
+        ),
+        Expanded(
+          child: RichText(
+            textAlign: TextAlign.end,
+            text: TextSpan(
+              style: Theme.of(context).textTheme.titleMedium,
+              children: [
+                const TextSpan(text: 'Desc: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                TextSpan(text: widget.conduceDetail.productHcpcShortDescription ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.normal, overflow: TextOverflow.ellipsis)),
+              ],
+            ),
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildProductList(int warehouseId, Color primaryColor) {
+    final params = ProductsByWarehouseParams(
+      warehouseId: warehouseId,
+      hcpcCode: widget.conduceDetail.productHcpcCode,
+    );
+    final productsAsyncValue = ref.watch(getProductsByWarehouseProvider(params));
+    final searchQuery = ref.watch(_searchQueryProvider);
+
+    return productsAsyncValue.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => Center(child: Text('Error al cargar productos: $err')),
+      data: (products) {
+        final filteredProducts = products.where((product) {
+          final query = searchQuery.toLowerCase();
+          if (query.isEmpty) return true;
+
+          return (product.name?.toLowerCase() ?? '').contains(query) ||
+              (product.sku?.toLowerCase() ?? '').contains(query) ||
+              (product.barcodeNumber?.toLowerCase() ?? '').contains(query) ||
+              (product.itemNumber?.toLowerCase() ?? '').contains(query);
+        }).toList();
+
+        if (filteredProducts.isEmpty) {
+          return const Center(
+            child: Text(
+              'No se encontraron productos disponibles en esta bodega.',
+              textAlign: TextAlign.center,
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(8.0),
+          itemCount: filteredProducts.length,
+          itemBuilder: (context, index) {
+            final product = filteredProducts[index];
+            // MODIFICADO: Se pasa el warehouseId a la tarjeta del producto.
+            return _buildProductCard(context, product, primaryColor, widget.conduceDetail, warehouseId);
+          },
+        );
+      },
+    );
+  }
+
+  // MODIFICADO: El método ahora acepta warehouseId.
+  Widget _buildProductCard(BuildContext context, Product product, Color primaryColor, ConduceDetail conduceDetail, int warehouseId) {
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            color: Colors.grey.shade100,
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    product.name ?? 'Nombre no disponible',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                RichText(
+                  text: TextSpan(
+                    style: Theme.of(context).textTheme.bodyMedium,
+                    children: [
+                      const TextSpan(text: 'Disponible: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                      TextSpan(text: product.currentQuantity?.toString() ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.normal)),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    double quant = product.currentQuantity ?? 0.0;
+                    if(quant >= (widget.conduceDetail.productQuantity ?? 0.0)) {
+                      // MODIFICADO: Se pasa el warehouseId al navegar al formulario.
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ViewUpdateConduceDetailForm(
+                            productId: product.id,
+                            conduceDetail: conduceDetail,
+                            warehouseId: warehouseId,
+                          ),
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Cantidad solicitada mayor a la disponible.'),
+                          backgroundColor: Colors.redAccent,
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Seleccionar'),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Table(
+              columnWidths: const {
+                0: FlexColumnWidth(2),
+                1: FlexColumnWidth(1.5),
+                2: FlexColumnWidth(1.5),
+                3: FlexColumnWidth(2),
+                4: FlexColumnWidth(2.5),
+                5: FlexColumnWidth(2),
+              },
+              children: [
+                TableRow(
+                  children: [
+                    _buildTableHeader('HCPC'),
+                    _buildTableHeader('Size'),
+                    _buildTableHeader('Color'),
+                    _buildTableHeader('Modelo'),
+                    _buildTableHeader('Barcode'),
+                    _buildTableHeader('Categoría'),
+                  ],
+                ),
+                TableRow(
+                  children: [
+                    _buildTableCell(product.hcpcCode),
+                    _buildTableCell(product.size),
+                    _buildTableCell(product.color),
+                    _buildTableCell(product.model),
+                    _buildTableCell(product.barcodeNumber),
+                    _buildTableCell(product.category),
+                  ],
+                )
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildTableHeader(String text) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.only(bottom: 8.0),
       child: Text(
         text,
-        style: const TextStyle(fontWeight: FontWeight.bold),
-        textAlign: TextAlign.start,
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
       ),
     );
   }
 
-  Widget _buildTableCell(String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Text(text, textAlign: TextAlign.start),
-    );
-  }
-
-  Widget _buildStatusChip(String? status) {
-    final statusText = status ?? 'N/A';
-    final statusColor = (statusText.toLowerCase() == 'completado')
-        ? Colors.green.shade700
-        : Colors.red.shade700;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: statusColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        statusText,
-        style: TextStyle(
-          color: statusColor,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+  Widget _buildTableCell(String? text) {
+    return Text(
+      text ?? 'N/A',
+      style: const TextStyle(fontSize: 12),
     );
   }
 }
