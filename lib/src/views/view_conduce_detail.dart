@@ -93,7 +93,7 @@ class _ViewConduceDetailState extends ConsumerState<ViewConduceDetail> {
                 foregroundColor: Colors.white,
               ),
               child: const Text(
-                  'Actualizar conduce',
+                'Actualizar conduce',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
@@ -409,12 +409,14 @@ class _ViewConduceDetailState extends ConsumerState<ViewConduceDetail> {
               1: FlexColumnWidth(),
               2: FlexColumnWidth(),
               3: FlexColumnWidth(),
-              4: FlexColumnWidth(1.5),
+              4: FlexColumnWidth(),
+              5: FlexColumnWidth(1.5),
             },
             children: [
               TableRow(
                 children: [
                   _buildTableHeader('SKU'),
+                  _buildTableHeader('Número'),
                   _buildTableHeader('Tamaño'),
                   _buildTableHeader('Modelo'),
                   _buildTableHeader('Color'),
@@ -425,6 +427,7 @@ class _ViewConduceDetailState extends ConsumerState<ViewConduceDetail> {
               TableRow(
                 children: [
                   _buildTableCell(detail.productSku ?? 'N/A'),
+                  _buildTableCell(detail.productItemNumber ?? 'N/A'),
                   _buildTableCell(detail.productSize ?? 'N/A'),
                   _buildTableCell(detail.productModel ?? 'N/A'),
                   _buildTableCell(detail.productColor ?? 'N/A'),
