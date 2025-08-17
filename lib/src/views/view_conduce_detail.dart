@@ -410,7 +410,8 @@ class _ViewConduceDetailState extends ConsumerState<ViewConduceDetail> {
               2: FlexColumnWidth(),
               3: FlexColumnWidth(),
               4: FlexColumnWidth(),
-              5: FlexColumnWidth(1.5),
+              5: FlexColumnWidth(),
+              6: FlexColumnWidth(1.5),
             },
             children: [
               TableRow(
