@@ -22,8 +22,7 @@ class DBHelper {
     String path = join(documentsDirectory.path, 'rps_inventory.db');
     return await openDatabase(
       path,
-      // Se incrementa la versión de la base de datos a 7 para activar la migración.
-      version: 7,
+      version: 8,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -54,7 +53,6 @@ class DBHelper {
         }
       }
     }
-    // Nueva migración para añadir la columna warehouse_id a conduce_details.
     if (oldVersion < 7) {
       try {
         await db.execute("ALTER TABLE conduce_details ADD COLUMN warehouse_id INTEGER;");
@@ -64,8 +62,16 @@ class DBHelper {
         }
       }
     }
+    if (oldVersion < 8) {
+      try {
+        await db.execute("ALTER TABLE conduces ADD COLUMN pay_method TEXT;");
+      } catch (e) {
+        if (kDebugMode) {
+          print("Error al agregar la columna 'pay_method' a 'conduces' (v8), puede que ya exista: $e");
+        }
+      }
+    }
     if (oldVersion < newVersion) {
-      // En caso de una nueva versión no manejada explícitamente, se recrean las tablas.
       await _createTables(db);
     }
   }
@@ -142,6 +148,7 @@ class DBHelper {
           payment_status TEXT,
           payment_amount TEXT,
           payment_amount_type TEXT,
+          pay_method TEXT,
           items_count INTEGER,
           guarantee_commitment INTEGER,
           certification_of_instructions INTEGER,
@@ -195,7 +202,6 @@ class DBHelper {
           product_size TEXT,
           product_model TEXT,
           product_color TEXT,
-          -- Se añade la nueva columna warehouse_id.
           warehouse_id INTEGER,
           FOREIGN KEY (conduce_id) REFERENCES conduces(id) ON DELETE CASCADE
       )
@@ -248,27 +254,20 @@ class DBHelper {
     ''');
   }
 
-  // --- NUEVOS MÉTODOS PARA OBTENER DATOS PARA SINCRONIZAR (SUBIDA) ---
-
-  /// Obtiene todos los registros de la tabla 'conduces' como una lista de mapas.
   Future<List<Map<String, dynamic>>> getConducesForSync() async {
     final db = await database;
     return await db.query('conduces');
   }
 
-  /// Obtiene todos los registros de la tabla 'conduce_details' como una lista de mapas.
   Future<List<Map<String, dynamic>>> getConduceDetailsForSync() async {
     final db = await database;
     return await db.query('conduce_details');
   }
 
-  /// Obtiene todos los registros de la tabla 'conduce_notes' como una lista de mapas.
   Future<List<Map<String, dynamic>>> getConduceNotesForSync() async {
     final db = await database;
     return await db.query('conduce_notes');
   }
-
-  // --- MÉTODOS EXISTENTES (SIN CAMBIOS) ---
 
   Future<void> addOrUpdateDeductible(Deductible deductible) async {
     final db = await database;

@@ -69,6 +69,7 @@ class Conduce {
   final String? paymentStatus;
   final String? paymentAmount;
   final String? paymentAmountType;
+  final String? payMethod;
   final int? itemsCount;
   final int? guaranteeCommitment;
   final int? certificationOfInstructions;
@@ -119,6 +120,7 @@ class Conduce {
     this.paymentStatus,
     this.paymentAmount,
     this.paymentAmountType,
+    this.payMethod,
     this.itemsCount,
     this.guaranteeCommitment,
     this.certificationOfInstructions,
@@ -128,7 +130,6 @@ class Conduce {
     required this.details,
   });
 
-  // --- INICIO: MÉTODO COPYWITH AÑADIDO ---
   Conduce copyWith({
     int? id,
     DateTime? createdAt,
@@ -171,6 +172,7 @@ class Conduce {
     String? paymentStatus,
     String? paymentAmount,
     String? paymentAmountType,
+    String? payMethod,
     int? itemsCount,
     int? guaranteeCommitment,
     int? certificationOfInstructions,
@@ -226,6 +228,7 @@ class Conduce {
       paymentStatus: paymentStatus ?? this.paymentStatus,
       paymentAmount: paymentAmount ?? this.paymentAmount,
       paymentAmountType: paymentAmountType ?? this.paymentAmountType,
+      payMethod: payMethod ?? this.payMethod,
       itemsCount: itemsCount ?? this.itemsCount,
       guaranteeCommitment: guaranteeCommitment ?? this.guaranteeCommitment,
       certificationOfInstructions:
@@ -236,7 +239,6 @@ class Conduce {
       details: details ?? this.details,
     );
   }
-  // --- FIN: MÉTODO COPYWITH AÑADIDO ---
 
   factory Conduce.fromJson(Map<String, dynamic> json) {
     final notesData = json["notes"];
@@ -286,6 +288,7 @@ class Conduce {
       paymentStatus: json["payment_status"],
       paymentAmount: json["payment_amount"],
       paymentAmountType: json["payment_amount_type"],
+      payMethod: json["pay_method"],
       itemsCount: _parseInt(json["items_count"]),
       guaranteeCommitment: _parseInt(json["guarantee_commitment"]),
       certificationOfInstructions:
@@ -347,6 +350,7 @@ class Conduce {
     "payment_status": paymentStatus,
     "payment_amount": paymentAmount,
     "payment_amount_type": paymentAmountType,
+    "pay_method": payMethod,
     "items_count": itemsCount,
     "guarantee_commitment": guaranteeCommitment,
     "certification_of_instructions": certificationOfInstructions,

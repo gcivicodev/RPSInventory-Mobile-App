@@ -23,22 +23,19 @@ class ViewUpdateConduce extends ConsumerStatefulWidget {
 class _ViewUpdateConduceState extends ConsumerState<ViewUpdateConduce> {
   final _formKey = GlobalKey<FormState>();
 
-
   late TextEditingController _patientWeightController;
   late TextEditingController _patientHeightController;
   late TextEditingController _paymentAmountController;
   late TextEditingController _patientNoSignatureReasonController;
   late TextEditingController _otherPersonSignatureRelationshipController;
 
-
   String? _patientSex;
   int? _insulin;
   String? _paymentAmountType;
-
+  String? _payMethod;
 
   bool _guaranteeCommitment = false;
   bool _certificationOfInstructions = false;
-
 
   final SignatureController _patientSignatureController = SignatureController(
     penStrokeWidth: 2,
@@ -48,7 +45,6 @@ class _ViewUpdateConduceState extends ConsumerState<ViewUpdateConduce> {
     penStrokeWidth: 2,
     penColor: Colors.black,
   );
-
 
   bool _isFormInitialized = false;
   bool _isSaving = false;
@@ -93,6 +89,7 @@ class _ViewUpdateConduceState extends ConsumerState<ViewUpdateConduce> {
     _patientSex = conduce.patientSex;
     _insulin = conduce.insulin;
     _paymentAmountType = conduce.paymentAmountType;
+    _payMethod = conduce.payMethod;
 
     _guaranteeCommitment = conduce.guaranteeCommitment == 1;
     _certificationOfInstructions = conduce.certificationOfInstructions == 1;
@@ -103,7 +100,8 @@ class _ViewUpdateConduceState extends ConsumerState<ViewUpdateConduce> {
 
     FocusScope.of(context).unfocus();
 
-    if (_patientNoSignatureReasonController.text.trim().isNotEmpty && _otherPersonSignatureRelationshipController.text.trim().isEmpty) {
+    if (_patientNoSignatureReasonController.text.trim().isNotEmpty &&
+        _otherPersonSignatureRelationshipController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Debe proporcionar la relación con el paciente.'),
         backgroundColor: Colors.red,
@@ -174,6 +172,7 @@ class _ViewUpdateConduceState extends ConsumerState<ViewUpdateConduce> {
           patientSex: _patientSex,
           insulin: _insulin,
           paymentAmountType: _paymentAmountType,
+          payMethod: _payMethod,
           guaranteeCommitment: _guaranteeCommitment ? 1 : 0,
           certificationOfInstructions: _certificationOfInstructions ? 1 : 0,
           status: 'Completado',
@@ -188,13 +187,9 @@ class _ViewUpdateConduceState extends ConsumerState<ViewUpdateConduce> {
 
         await ref.read(updateConduceProvider(updatedConduce).future);
 
-
-
-
         ref.invalidate(conducesProvider);
 
         ref.invalidate(getConduceProvider(widget.conduceId));
-
 
         if (mounted) {
           Navigator.of(context).pushAndRemoveUntil(
@@ -294,8 +289,8 @@ class _ViewUpdateConduceState extends ConsumerState<ViewUpdateConduce> {
                     const SizedBox(height: 24),
                     _buildProductsCard(context, conduceData.details),
                     const SizedBox(height: 24),
-                    _buildSignatureCard('Firma de Paciente/Representante',
-                        _patientSignatureController,
+                    _buildSignatureCard(
+                        'Firma de Paciente/Representante', _patientSignatureController,
                         isRequired: false),
                     const SizedBox(height: 24),
                     _buildSignatureCard(
@@ -311,7 +306,6 @@ class _ViewUpdateConduceState extends ConsumerState<ViewUpdateConduce> {
       ),
     );
   }
-
 
   Widget _buildReadOnlyInfoCard(Conduce conduce) {
     String formattedDob = 'No disponible';
@@ -420,6 +414,21 @@ class _ViewUpdateConduceState extends ConsumerState<ViewUpdateConduce> {
                         _patientHeightController, 'Altura (Pulg.)',
                         required: false)),
               ],
+            ),
+            const SizedBox(height: 16),
+            _buildDropdownField(
+              label: 'Método de pago',
+              value: _payMethod,
+              items: const [
+                DropdownMenuItem(value: null, child: Text('Seleccionar...')),
+                DropdownMenuItem(value: 'Tarjeta', child: Text('Tarjeta')),
+                DropdownMenuItem(value: 'Efectivo', child: Text('Efectivo')),
+                DropdownMenuItem(value: 'Giro', child: Text('Giro')),
+                DropdownMenuItem(value: 'Cheque', child: Text('Cheque')),
+              ],
+              onChanged: (val) => setState(() => _payMethod = val),
+              validator: (value) =>
+              (value == null) ? 'Campo requerido' : null,
             ),
             const SizedBox(height: 16),
             _buildDropdownField(
