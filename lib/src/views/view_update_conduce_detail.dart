@@ -31,12 +31,9 @@ class _ViewUpdateConduceDetailState extends ConsumerState<ViewUpdateConduceDetai
   @override
   void initState() {
     super.initState();
-    // Inicializa la bodega seleccionada si es necesario.
-    // Usamos listenManual para configurar el valor inicial una sola vez.
     ref.listenManual(warehousesProvider, (previous, next) {
       if (next.hasValue && next.value!.isNotEmpty) {
         final warehouses = next.value!;
-        // Solo establece el valor si aún no ha sido seleccionado.
         if (ref.read(_selectedWarehouseProvider) == null) {
           ref.read(_selectedWarehouseProvider.notifier).state = warehouses.first.id;
         }
@@ -109,7 +106,6 @@ class _ViewUpdateConduceDetailState extends ConsumerState<ViewUpdateConduceDetai
       double requestedQuantity = widget.conduceDetail.productQuantity ?? 0.0;
 
       if (availableQuantity >= requestedQuantity) {
-        // MODIFICADO: Se pasa el warehouseId al navegar al formulario.
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -326,7 +322,6 @@ class _ViewUpdateConduceDetailState extends ConsumerState<ViewUpdateConduceDetai
           itemCount: filteredProducts.length,
           itemBuilder: (context, index) {
             final product = filteredProducts[index];
-            // MODIFICADO: Se pasa el warehouseId a la tarjeta del producto.
             return _buildProductCard(context, product, primaryColor, widget.conduceDetail, warehouseId);
           },
         );
@@ -334,7 +329,6 @@ class _ViewUpdateConduceDetailState extends ConsumerState<ViewUpdateConduceDetai
     );
   }
 
-  // MODIFICADO: El método ahora acepta warehouseId.
   Widget _buildProductCard(BuildContext context, Product product, Color primaryColor, ConduceDetail conduceDetail, int warehouseId) {
     return Card(
       elevation: 2,
@@ -371,7 +365,6 @@ class _ViewUpdateConduceDetailState extends ConsumerState<ViewUpdateConduceDetai
                   onPressed: () {
                     double quant = product.currentQuantity ?? 0.0;
                     if(quant >= (widget.conduceDetail.productQuantity ?? 0.0)) {
-                      // MODIFICADO: Se pasa el warehouseId al navegar al formulario.
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -411,8 +404,9 @@ class _ViewUpdateConduceDetailState extends ConsumerState<ViewUpdateConduceDetai
                 1: FlexColumnWidth(1.5),
                 2: FlexColumnWidth(1.5),
                 3: FlexColumnWidth(2),
-                4: FlexColumnWidth(2.5),
-                5: FlexColumnWidth(2),
+                4: FlexColumnWidth(2),
+                5: FlexColumnWidth(2.5),
+                6: FlexColumnWidth(2),
               },
               children: [
                 TableRow(
@@ -421,6 +415,7 @@ class _ViewUpdateConduceDetailState extends ConsumerState<ViewUpdateConduceDetai
                     _buildTableHeader('Size'),
                     _buildTableHeader('Color'),
                     _buildTableHeader('Modelo'),
+                    _buildTableHeader('Número'),
                     _buildTableHeader('Barcode'),
                     _buildTableHeader('Categoría'),
                   ],
@@ -431,6 +426,7 @@ class _ViewUpdateConduceDetailState extends ConsumerState<ViewUpdateConduceDetai
                     _buildTableCell(product.size),
                     _buildTableCell(product.color),
                     _buildTableCell(product.model),
+                    _buildTableCell(product.itemNumber),
                     _buildTableCell(product.barcodeNumber),
                     _buildTableCell(product.category),
                   ],
