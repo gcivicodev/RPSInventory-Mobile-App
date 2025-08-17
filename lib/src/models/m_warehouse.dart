@@ -32,6 +32,7 @@ class Warehouse {
   final String? lastLocationLng;
   final String? address1;
   final String? address2;
+  int? showMobileapp;
 
   Warehouse({
     required this.id,
@@ -48,6 +49,7 @@ class Warehouse {
     this.lastLocationLng,
     this.address1,
     this.address2,
+    this.showMobileapp,
   });
 
   factory Warehouse.fromJson(Map<String, dynamic> json) => Warehouse(
@@ -65,6 +67,7 @@ class Warehouse {
     lastLocationLng: json["last_location_lng"],
     address1: json["address_1"],
     address2: json["address_2"],
+    showMobileapp: _parseInt(json["show_mobileapp"]),
   );
 
   Map<String, dynamic> toMap() => {
@@ -82,5 +85,6 @@ class Warehouse {
     "last_location_lng": lastLocationLng,
     "address_1": address1,
     "address_2": address2,
+    // "show_mobileapp": showMobileapp,
   };
 }
