@@ -13,14 +13,12 @@ class ViewUpdateConduceDetailForm extends ConsumerStatefulWidget {
   static const path = '/conduce/update/form';
   final int productId;
   final ConduceDetail conduceDetail;
-  // AÑADIDO: Parámetro para recibir el ID de la bodega.
   final int warehouseId;
 
   const ViewUpdateConduceDetailForm({
     super.key,
     required this.productId,
     required this.conduceDetail,
-    // AÑADIDO: Se hace requerido en el constructor.
     required this.warehouseId,
   });
 
@@ -65,14 +63,12 @@ class _ViewUpdateConduceDetailFormState
     );
 
     try {
-      // MODIFICADO: Se pasa el warehouseId al provider.
-      // Se asume que el provider `updateConduceDetailProvider` está
-      // configurado para recibir un record con este nuevo parámetro.
       await ref.read(updateConduceDetailProvider((
       originalDetailId: widget.conduceDetail.id,
       product: product,
       tag: _tagController.text,
       warehouseId: widget.warehouseId,
+      productQuantity: widget.conduceDetail.productQuantity ?? 0.0,
       )).future);
 
       final conduceId = widget.conduceDetail.conduceId;
@@ -81,7 +77,7 @@ class _ViewUpdateConduceDetailFormState
       }
       ref.invalidate(conducesProvider);
 
-      if (mounted) Navigator.of(context).pop(); // Cierra el dialogo de carga
+      if (mounted) Navigator.of(context).pop();
 
       if (mounted && conduceId != null) {
         Navigator.of(context).pushAndRemoveUntil(
@@ -95,7 +91,8 @@ class _ViewUpdateConduceDetailFormState
         );
       }
     } catch (e) {
-      if (mounted) Navigator.of(context).pop(); // Cierra el dialogo de carga
+      if (mounted) Navigator.of(context).pop();
+      throw Exception('Error al actualizar: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error al actualizar: $e'),

@@ -426,7 +426,7 @@ class _ViewUpdateConduceDetailState extends ConsumerState<ViewUpdateConduceDetai
                     _buildTableCell(product.size),
                     _buildTableCell(product.color),
                     _buildTableCell(product.model),
-                    _buildTableCell(product.itemNumber),
+                    _buildTableCell(product.sku),
                     _buildTableCell(product.barcodeNumber),
                     _buildTableCell(product.category),
                   ],
