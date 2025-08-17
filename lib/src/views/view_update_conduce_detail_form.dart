@@ -92,7 +92,7 @@ class _ViewUpdateConduceDetailFormState
       }
     } catch (e) {
       if (mounted) Navigator.of(context).pop();
-      throw Exception('Error al actualizar: $e');
+      // throw Exception('Error al actualizar: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error al actualizar: $e'),
