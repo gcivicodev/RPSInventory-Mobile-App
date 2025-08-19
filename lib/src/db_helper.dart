@@ -241,9 +241,9 @@ class DBHelper {
     ''');
   }
 
-  Future<List<MovementDetail>> getMovements() async {
+  Future<List<MovementDetail>> getMovements({String? searchTerm}) async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+    String query = '''
       SELECT
         m.id,
         p.name as product_name,
@@ -264,8 +264,28 @@ class DBHelper {
       LEFT JOIN products p ON m.product_id = p.id
       LEFT JOIN warehouses wo ON m.warehouse_origin_id = wo.id
       LEFT JOIN warehouses wd ON m.warehouse_destination_id = wd.id
-      ORDER BY m.created_at DESC
-    ''');
+    ''';
+
+    List<dynamic> args = [];
+    if (searchTerm != null && searchTerm.isNotEmpty) {
+      final searchPattern = '%$searchTerm%';
+      query += '''
+        WHERE p.name LIKE ?
+        OR wo.name LIKE ?
+        OR wd.name LIKE ?
+        OR p.sku LIKE ?
+        OR p.barcode_number LIKE ?
+        OR p.size LIKE ?
+        OR p.color LIKE ?
+        OR p.model LIKE ?
+        OR m.username LIKE ?
+      ''';
+      args = List.filled(9, searchPattern);
+    }
+
+    query += ' ORDER BY m.created_at DESC';
+
+    final List<Map<String, dynamic>> maps = await db.rawQuery(query, args);
 
     if (maps.isNotEmpty) {
       return maps.map((map) => MovementDetail.fromMap(map)).toList();

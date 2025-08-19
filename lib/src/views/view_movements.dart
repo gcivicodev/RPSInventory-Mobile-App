@@ -3,12 +3,36 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rpsinventory/src/models/m_movement_detail.dart';
 import 'package:rpsinventory/src/providers/movements_provider.dart';
 
-class ViewMovements extends ConsumerWidget {
+class ViewMovements extends ConsumerStatefulWidget {
   const ViewMovements({super.key});
   static String path = '/movements';
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ViewMovements> createState() => _ViewMovementsState();
+}
+
+class _ViewMovementsState extends ConsumerState<ViewMovements> {
+  final _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      if (mounted) {
+        ref.read(movementSearchQueryProvider.notifier).state =
+            _searchController.text;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final movementsAsync = ref.watch(movementsProvider);
     const primaryColor = Color(0xff0088CC);
 
@@ -22,27 +46,54 @@ class ViewMovements extends ConsumerWidget {
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
       ),
-      body: movementsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error al cargar movimientos: $err')),
-        data: (movements) {
-          if (movements.isEmpty) {
-            return const Center(
-              child: Text(
-                'No hay movimientos para mostrar.',
-                style: TextStyle(fontSize: 18, color: Colors.grey),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Buscar movimiento...',
+                hintText: 'Buscar por producto, almacén, usuario, etc.',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                  },
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12.0),
+                ),
               ),
-            );
-          }
-          return ListView.builder(
-            padding: const EdgeInsets.all(8.0),
-            itemCount: movements.length,
-            itemBuilder: (context, index) {
-              final movement = movements[index];
-              return _buildMovementCard(context, movement);
-            },
-          );
-        },
+            ),
+          ),
+          Expanded(
+            child: movementsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, stack) =>
+                  Center(child: Text('Error al cargar movimientos: $err')),
+              data: (movements) {
+                if (movements.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'No se encontraron movimientos.',
+                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                    ),
+                  );
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  itemCount: movements.length,
+                  itemBuilder: (context, index) {
+                    final movement = movements[index];
+                    return _buildMovementCard(context, movement);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -81,8 +132,18 @@ class ViewMovements extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildProductColumn(context, movement),
-                _buildMovementInfoColumn(context, 'Origen', movement.warehouseOriginName, movement.warehouseOriginProductQuantityBeforeMovement, movement.warehouseOriginProductQuantityAfterMovement),
-                _buildMovementInfoColumn(context, 'Destino', movement.warehouseDestinationName, movement.warehouseDestinationProductQuantityBeforeMovement, movement.warehouseDestinationProductQuantityAfterMovement),
+                _buildMovementInfoColumn(
+                    context,
+                    'Origen',
+                    movement.warehouseOriginName,
+                    movement.warehouseOriginProductQuantityBeforeMovement,
+                    movement.warehouseOriginProductQuantityAfterMovement),
+                _buildMovementInfoColumn(
+                    context,
+                    'Destino',
+                    movement.warehouseDestinationName,
+                    movement.warehouseDestinationProductQuantityBeforeMovement,
+                    movement.warehouseDestinationProductQuantityAfterMovement),
               ],
             ),
           ],
@@ -96,7 +157,11 @@ class ViewMovements extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Producto', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          Text('Producto',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           _buildDetailRow('No. de producto:', movement.sku),
           _buildDetailRow('Barcode:', movement.barcodeNumber),
@@ -108,14 +173,20 @@ class ViewMovements extends ConsumerWidget {
     );
   }
 
-  Widget _buildMovementInfoColumn(BuildContext context, String title, String? warehouseName, double? before, double? after) {
+  Widget _buildMovementInfoColumn(BuildContext context, String title,
+      String? warehouseName, double? before, double? after) {
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          Text(title,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Text('Almacen: ${warehouseName ?? 'N/A'}', style: const TextStyle(fontWeight: FontWeight.w500)),
+          Text('Almacen: ${warehouseName ?? 'N/A'}',
+              style: const TextStyle(fontWeight: FontWeight.w500)),
           const SizedBox(height: 4),
           Text('Antes: ${before?.toStringAsFixed(2) ?? "0.00"}'),
           const SizedBox(height: 4),
@@ -131,7 +202,9 @@ class ViewMovements extends ConsumerWidget {
       child: Text.rich(
         TextSpan(
           children: [
-            TextSpan(text: label, style: const TextStyle(fontWeight: FontWeight.bold)),
+            TextSpan(
+                text: label,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
             TextSpan(text: ' ${value ?? 'N/A'}'),
           ],
         ),
