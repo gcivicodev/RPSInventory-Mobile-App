@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:rpsinventory/src/models/m_conduce.dart';
 import 'package:rpsinventory/src/models/m_conduce_note.dart';
 import 'package:rpsinventory/src/models/m_deductible.dart';
+import 'package:rpsinventory/src/models/m_movements.dart';
 import 'package:rpsinventory/src/models/m_product.dart';
 import 'package:rpsinventory/src/models/m_warehouse.dart';
 import 'package:rpsinventory/src/models/m_warehouse_product.dart';
@@ -280,6 +281,26 @@ class DBHelper {
           deductible TEXT,
           created_at TEXT,
           updated_at TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS movements(
+          id INTEGER PRIMARY KEY,
+          created_at TEXT,
+          updated_at TEXT,
+          deleted_at TEXT,
+          user_id INTEGER,
+          warehouse_origin_id INTEGER,
+          product_id INTEGER,
+          warehouse_origin_product_quantity_before_movement REAL,
+          product_quantity_moved REAL,
+          warehouse_origin_product_quantity_after_movement REAL,
+          warehouse_destination_id INTEGER,
+          warehouse_destination_product_quantity_before_movement REAL,
+          warehouse_destination_product_quantity_after_movement REAL,
+          username TEXT,
+          local_id INTEGER
       )
     ''');
   }
