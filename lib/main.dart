@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/date_symbol_data_local.dart'; // Importa el paquete de localización
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:rpsinventory/src/views/view_conduces.dart';
 import 'package:rpsinventory/src/views/view_login.dart';
+import 'package:rpsinventory/src/views/view_movements.dart';
+import 'package:rpsinventory/src/views/view_sync_almacen.dart';
 import 'package:rpsinventory/src/views/view_sync_carrero.dart';
 
 void main() {
-  // Asegura que los bindings de Flutter estén inicializados.
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inicializa los datos de localización para español ANTES de correr la app.
-  // Esta es la línea clave que soluciona el error.
   initializeDateFormatting('es_ES', null).then((_) {
     runApp(
       const ProviderScope(
@@ -38,6 +37,8 @@ class MyApp extends StatelessWidget {
         ViewLogin.path: (context) => const ViewLogin(),
         ViewSyncCarrero.path: (context) => const ViewSyncCarrero(),
         ViewConduces.path: (context) => const ViewConduces(),
+        ViewSyncAlmacen.path: (context) => const ViewSyncAlmacen(),
+        ViewMovements.path: (context) => const ViewMovements(),
       },
     );
   }

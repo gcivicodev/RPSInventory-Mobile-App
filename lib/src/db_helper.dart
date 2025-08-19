@@ -23,7 +23,7 @@ class DBHelper {
     String path = join(documentsDirectory.path, 'rps_inventory.db');
     return await openDatabase(
       path,
-      version: 12,
+      version: 13,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -98,6 +98,9 @@ class DBHelper {
           print("Error al agregar la columna 'completed_at' a 'conduces' (v12), puede que ya exista: $e");
         }
       }
+    }
+    if (oldVersion < 13) {
+      await _createTables(db);
     }
     if (oldVersion < newVersion) {
       await _createTables(db);

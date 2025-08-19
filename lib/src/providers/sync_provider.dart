@@ -5,37 +5,35 @@ import 'package:rpsinventory/src/config/main_config.dart';
 import 'package:rpsinventory/src/db_helper.dart';
 import 'package:rpsinventory/src/models/m_conduce.dart';
 import 'package:rpsinventory/src/models/m_deductible.dart';
+import 'package:rpsinventory/src/models/m_movements.dart';
 import 'package:rpsinventory/src/models/m_product.dart';
 import 'package:rpsinventory/src/models/m_warehouse.dart';
 import 'package:rpsinventory/src/models/m_warehouse_product.dart';
+import 'package:sqflite/sqflite.dart';
 
 enum SyncStatus { pending, inProgress, completed, error }
 
-// --- ESTADO MODIFICADO ---
-// Se añaden estados para controlar la fase de subida de datos.
 class SyncState {
-  // Estados para la fase de subida
-  final SyncStatus  uploadStatus;
+  final SyncStatus uploadStatus;
   final bool isUploading;
-
-  // Estados para la fase de bajada/descarga
   final SyncStatus productsStatus;
   final SyncStatus warehousesStatus;
   final SyncStatus warehousesProductsStatus;
   final SyncStatus conducesStatus;
   final SyncStatus deductiblesStatus;
-
+  final SyncStatus movementsStatus;
   final bool isSyncComplete;
   final String? errorMessage;
 
   SyncState({
     this.uploadStatus = SyncStatus.pending,
-    this.isUploading = true, // Inicia en modo subida
+    this.isUploading = true,
     this.productsStatus = SyncStatus.pending,
     this.warehousesStatus = SyncStatus.pending,
     this.warehousesProductsStatus = SyncStatus.pending,
     this.conducesStatus = SyncStatus.pending,
     this.deductiblesStatus = SyncStatus.pending,
+    this.movementsStatus = SyncStatus.pending,
     this.isSyncComplete = false,
     this.errorMessage,
   });
@@ -48,6 +46,7 @@ class SyncState {
     SyncStatus? warehousesProductsStatus,
     SyncStatus? conducesStatus,
     SyncStatus? deductiblesStatus,
+    SyncStatus? movementsStatus,
     bool? isSyncComplete,
     String? errorMessage,
     bool clearErrorMessage = false,
@@ -61,6 +60,7 @@ class SyncState {
       warehousesProductsStatus ?? this.warehousesProductsStatus,
       conducesStatus: conducesStatus ?? this.conducesStatus,
       deductiblesStatus: deductiblesStatus ?? this.deductiblesStatus,
+      movementsStatus: movementsStatus ?? this.movementsStatus,
       isSyncComplete: isSyncComplete ?? this.isSyncComplete,
       errorMessage: clearErrorMessage ? null : errorMessage ?? this.errorMessage,
     );
@@ -72,50 +72,60 @@ class SyncNotifier extends StateNotifier<SyncState> {
 
   final dbHelper = DBHelper.instance;
 
-  // --- MÉTODO PRINCIPAL MODIFICADO ---
-  // Orquesta todo el proceso: primero sube los datos y luego los baja.
   Future<void> startSync(String token, String userId) async {
-    // 1. Inicia el proceso, reseteando el estado al modo de subida.
     state = SyncState();
-
-    // 2. Ejecuta la fase de subida de datos.
     await _uploadAllData(token);
-
-    // 3. Si la subida fue exitosa, procede con la fase de bajada.
     if (state.uploadStatus == SyncStatus.completed) {
-      state = state.copyWith(isUploading: false); // Cambia de fase
+      state = state.copyWith(isUploading: false);
       await _startDownload(token, userId);
     }
   }
 
-  // --- NUEVO MÉTODO PRIVADO PARA LA SUBIDA DE DATOS ---
+  Future<void> startSyncAlmacen(String token, String userId) async {
+    state = SyncState(isUploading: false);
+    await _clearAlmacenTables();
+    await _syncWarehousesAlmacen(token);
+    if (state.warehousesStatus != SyncStatus.completed) return;
+    await _syncWarehousesProductsAlmacen(token);
+    if (state.warehousesProductsStatus != SyncStatus.completed) return;
+    await _syncProductsAlmacen(token);
+    if (state.productsStatus != SyncStatus.completed) return;
+    await _syncMovementsAlmacen(token);
+    if (state.movementsStatus != SyncStatus.completed) return;
+
+    if (state.warehousesStatus == SyncStatus.completed &&
+        state.warehousesProductsStatus == SyncStatus.completed &&
+        state.productsStatus == SyncStatus.completed &&
+        state.movementsStatus == SyncStatus.completed) {
+      state = state.copyWith(isSyncComplete: true);
+    }
+  }
+
+  Future<void> _clearAlmacenTables() async {
+    final db = await dbHelper.database;
+    await db.delete('warehouses');
+    await db.delete('warehouses_products');
+    await db.delete('products');
+    await db.delete('movements');
+  }
+
   Future<void> _uploadAllData(String token) async {
     state = state.copyWith(uploadStatus: SyncStatus.inProgress, errorMessage: null, clearErrorMessage: true);
     try {
-      // Obtener datos de SQLite
       final conducesFromDb = await dbHelper.getConducesForSync();
       final detailsFromDb = await dbHelper.getConduceDetailsForSync();
       final notesToSync = await dbHelper.getConduceNotesForSync();
 
-      // Prepara los datos para la subida, excluyendo las columnas nuevas.
-      // Esto es una solución temporal hasta que el backend sea actualizado.
       final conducesToSync = conducesFromDb.map((conduce) {
         final newConduce = Map<String, dynamic>.from(conduce);
-        // newConduce.remove('pay_method'); // Excluir la nueva columna
-        // if(newConduce['exonerated'] == 0) {
-        //   newConduce.remove('exonerated');
-        // }
         return newConduce;
       }).toList();
 
       final detailsToSync = detailsFromDb.map((detail) {
         final newDetail = Map<String, dynamic>.from(detail);
-        // newDetail.remove('warehouse_id'); // Excluir la nueva columna
         return newDetail;
       }).toList();
 
-
-      // Endpoint 1: Subir Conduces
       if (conducesToSync.isNotEmpty) {
         await _postData(
           endpoint: 'sync_update_conduces_carrero',
@@ -124,7 +134,6 @@ class SyncNotifier extends StateNotifier<SyncState> {
         );
       }
 
-      // Endpoint 2: Subir Detalles de Conduces
       if (detailsToSync.isNotEmpty) {
         await _postData(
           endpoint: 'sync_update_conduces_details_carrero',
@@ -133,7 +142,6 @@ class SyncNotifier extends StateNotifier<SyncState> {
         );
       }
 
-      // Endpoint 3: Subir Notas de Conduces
       if (notesToSync.isNotEmpty) {
         await _postData(
           endpoint: 'sync_update_conduces_notes_carrero',
@@ -142,7 +150,6 @@ class SyncNotifier extends StateNotifier<SyncState> {
         );
       }
 
-      // Si todo sale bien, marca la subida como completada.
       state = state.copyWith(uploadStatus: SyncStatus.completed);
 
     } catch (e) {
@@ -153,7 +160,6 @@ class SyncNotifier extends StateNotifier<SyncState> {
     }
   }
 
-  // --- NUEVO MÉTODO HELPER PARA HACER POST ---
   Future<void> _postData({
     required String endpoint,
     required String token,
@@ -172,7 +178,6 @@ class SyncNotifier extends StateNotifier<SyncState> {
     }
   }
 
-  // --- LÓGICA DE DESCARGA (EXTRAÍDA A SU PROPIO MÉTODO) ---
   Future<void> _startDownload(String token, String userId) async {
     await _syncProducts(token);
     if (state.productsStatus != SyncStatus.completed) return;
@@ -198,7 +203,6 @@ class SyncNotifier extends StateNotifier<SyncState> {
     }
   }
 
-  // Métodos de sincronización de bajada (sin cambios)
   Future<void> _syncProducts(String token) async {
     state = state.copyWith(productsStatus: SyncStatus.inProgress, errorMessage: null, clearErrorMessage: true);
     try {
@@ -324,6 +328,110 @@ class SyncNotifier extends StateNotifier<SyncState> {
       state = state.copyWith(
           deductiblesStatus: SyncStatus.error,
           errorMessage: "Error de red al sincronizar deducibles: ${e.toString()}");
+    }
+  }
+
+  Future<void> _syncWarehousesAlmacen(String token) async {
+    state = state.copyWith(warehousesStatus: SyncStatus.inProgress, errorMessage: null, clearErrorMessage: true);
+    try {
+      final url = Uri.parse('${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_warehouses_almacen');
+      final response = await http.post(url,
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'token': token}));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> list = json.decode(response.body);
+        for (var itemJson in list) {
+          await dbHelper.addOrUpdateWarehouse(Warehouse.fromJson(itemJson));
+        }
+        state = state.copyWith(warehousesStatus: SyncStatus.completed);
+      } else {
+        final error = json.decode(response.body)['error'] ?? 'Error al sincronizar almacenes';
+        state = state.copyWith(warehousesStatus: SyncStatus.error, errorMessage: error);
+      }
+    } catch (e) {
+      state = state.copyWith(
+          warehousesStatus: SyncStatus.error,
+          errorMessage: "Error de red: ${e.toString()}");
+    }
+  }
+
+  Future<void> _syncWarehousesProductsAlmacen(String token) async {
+    state = state.copyWith(
+        warehousesProductsStatus: SyncStatus.inProgress, errorMessage: null, clearErrorMessage: true);
+    try {
+      final url = Uri.parse('${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_warehouses_products_almacen');
+      final response = await http.post(url,
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'token': token}));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> list = json.decode(response.body);
+        for (var itemJson in list) {
+          await dbHelper
+              .addOrUpdateWarehouseProduct(WarehouseProduct.fromJson(itemJson));
+        }
+        state = state.copyWith(warehousesProductsStatus: SyncStatus.completed);
+      } else {
+        final error = json.decode(response.body)['error'] ?? 'Error al sincronizar productos de almacén';
+        state = state.copyWith(
+            warehousesProductsStatus: SyncStatus.error, errorMessage: error);
+      }
+    } catch (e) {
+      state = state.copyWith(
+          warehousesProductsStatus: SyncStatus.error,
+          errorMessage: "Error de red: ${e.toString()}");
+    }
+  }
+
+  Future<void> _syncProductsAlmacen(String token) async {
+    state = state.copyWith(productsStatus: SyncStatus.inProgress, errorMessage: null, clearErrorMessage: true);
+    try {
+      final url = Uri.parse('${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_products_almacen');
+      final response = await http.post(url,
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'token': token}));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> productList = json.decode(response.body);
+        for (var productJson in productList) {
+          await dbHelper.addOrUpdateProduct(Product.fromJson(productJson));
+        }
+        state = state.copyWith(productsStatus: SyncStatus.completed);
+      } else {
+        final error = json.decode(response.body)['error'] ?? 'Error al sincronizar productos';
+        state = state.copyWith(productsStatus: SyncStatus.error, errorMessage: error);
+      }
+    } catch (e) {
+      state = state.copyWith(
+          productsStatus: SyncStatus.error,
+          errorMessage: "Error de red: ${e.toString()}");
+    }
+  }
+
+  Future<void> _syncMovementsAlmacen(String token) async {
+    state = state.copyWith(movementsStatus: SyncStatus.inProgress, errorMessage: null, clearErrorMessage: true);
+    try {
+      final url = Uri.parse('${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_warehouses_products_movements_almacen');
+      final response = await http.post(url,
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'token': token}));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> movementList = json.decode(response.body);
+        for (var movementJson in movementList) {
+          final db = await dbHelper.database;
+          await db.insert('movements', Movement.fromJson(movementJson).toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+        state = state.copyWith(movementsStatus: SyncStatus.completed);
+      } else {
+        final error = json.decode(response.body)['error'] ?? 'Error al sincronizar movimientos';
+        state = state.copyWith(movementsStatus: SyncStatus.error, errorMessage: error);
+      }
+    } catch (e) {
+      state = state.copyWith(
+          movementsStatus: SyncStatus.error,
+          errorMessage: "Error de red: ${e.toString()}");
     }
   }
 }

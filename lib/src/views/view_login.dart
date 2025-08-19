@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rpsinventory/src/models/m_user.dart';
 import 'package:rpsinventory/src/providers/auth_provider.dart';
-import 'package:rpsinventory/src/providers/user_provider.dart'; // Importa el provider de usuario
-import 'package:rpsinventory/src/views/view_sync_carrero.dart'; // Importa la vista de sincronización
+import 'package:rpsinventory/src/providers/user_provider.dart';
+import 'package:rpsinventory/src/views/view_sync_almacen.dart';
+import 'package:rpsinventory/src/views/view_sync_carrero.dart';
 
 class ViewLogin extends ConsumerStatefulWidget {
   const ViewLogin({super.key});
@@ -30,13 +31,13 @@ class _ViewLoginState extends ConsumerState<ViewLogin> {
     final authState = ref.watch(authProvider);
     final userState = ref.watch(userProvider);
 
-    // Escucha el estado del usuario para la navegación
     ref.listen<UserState>(userProvider, (previous, next) {
       if (next.userData != null) {
         if (next.userData!.flags == 'CC') {
           Navigator.of(context).pushReplacementNamed(ViewSyncCarrero.path);
+        } else if (next.userData!.flags == 'WW') {
+          Navigator.of(context).pushReplacementNamed(ViewSyncAlmacen.path);
         } else {
-          // Aquí puedes manejar otros roles, por ejemplo, navegar a otra vista
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Rol de usuario no manejado.')),
           );
