@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:rpsinventory/src/models/m_conduce.dart';
 import 'package:rpsinventory/src/models/m_conduce_note.dart';
 import 'package:rpsinventory/src/models/m_deductible.dart';
+import 'package:rpsinventory/src/models/m_movement_detail.dart';
 import 'package:rpsinventory/src/models/m_movements.dart';
 import 'package:rpsinventory/src/models/m_product.dart';
 import 'package:rpsinventory/src/models/m_warehouse.dart';
@@ -34,75 +35,7 @@ class DBHelper {
   }
 
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 4) {
-      try {
-        await db.execute("ALTER TABLE conduces ADD COLUMN guarantee_commitment INTEGER;");
-        await db.execute("ALTER TABLE conduces ADD COLUMN certification_of_instructions INTEGER;");
-      } catch (e) {
-        if (kDebugMode) {
-          print("Error al agregar columnas a 'conduces' (v4), puede que ya existan: $e");
-        }
-      }
-    }
-    if (oldVersion < 5) {
-      try {
-        await db.execute("ALTER TABLE conduces ADD COLUMN patient_signature TEXT;");
-        await db.execute("ALTER TABLE conduces ADD COLUMN employee_signature TEXT;");
-      } catch (e) {
-        if (kDebugMode) {
-          print("Error al agregar columnas de firma a 'conduces' (v5), puede que ya existan: $e");
-        }
-      }
-    }
-    if (oldVersion < 7) {
-      try {
-        await db.execute("ALTER TABLE conduce_details ADD COLUMN warehouse_id INTEGER;");
-      } catch (e) {
-        if (kDebugMode) {
-          print("Error al agregar la columna 'warehouse_id' a 'conduce_details' (v7), puede que ya exista: $e");
-        }
-      }
-    }
-    if (oldVersion < 8) {
-      try {
-        await db.execute("ALTER TABLE conduces ADD COLUMN pay_method TEXT;");
-      } catch (e) {
-        if (kDebugMode) {
-          print("Error al agregar la columna 'pay_method' a 'conduces' (v8), puede que ya exista: $e");
-        }
-      }
-    }
-    if (oldVersion < 9) {
-      try {
-        await db.execute("ALTER TABLE warehouses ADD COLUMN show_mobileapp INTEGER;");
-      } catch (e) {
-        if (kDebugMode) {
-          print("Error al agregar la columna 'show_mobileapp' a 'warehouses' (v9), puede que ya exista: $e");
-        }
-      }
-    }
-    if (oldVersion < 10) {
-      try {
-        await db.execute("ALTER TABLE conduces ADD COLUMN exonerated INTEGER;");
-      } catch (e) {
-        if (kDebugMode) {
-          print("Error al agregar la columna 'exonerated' a 'conduces' (v10), puede que ya exista: $e");
-        }
-      }
-    }
-    if (oldVersion < 12) {
-      try {
-        await db.execute("ALTER TABLE conduces ADD COLUMN completed_at TEXT;");
-      } catch (e) {
-        if (kDebugMode) {
-          print("Error al agregar la columna 'completed_at' a 'conduces' (v12), puede que ya exista: $e");
-        }
-      }
-    }
     if (oldVersion < 13) {
-      await _createTables(db);
-    }
-    if (oldVersion < newVersion) {
       await _createTables(db);
     }
   }
@@ -306,6 +239,39 @@ class DBHelper {
           local_id INTEGER
       )
     ''');
+  }
+
+  Future<List<MovementDetail>> getMovements() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT
+        m.id,
+        p.name as product_name,
+        p.sku,
+        p.barcode_number,
+        p.size,
+        p.color,
+        p.model,
+        m.product_quantity_moved,
+        m.username,
+        wo.name as warehouse_origin_name,
+        m.warehouse_origin_product_quantity_before_movement,
+        m.warehouse_origin_product_quantity_after_movement,
+        wd.name as warehouse_destination_name,
+        m.warehouse_destination_product_quantity_before_movement,
+        m.warehouse_destination_product_quantity_after_movement
+      FROM movements m
+      LEFT JOIN products p ON m.product_id = p.id
+      LEFT JOIN warehouses wo ON m.warehouse_origin_id = wo.id
+      LEFT JOIN warehouses wd ON m.warehouse_destination_id = wd.id
+      ORDER BY m.created_at DESC
+    ''');
+
+    if (maps.isNotEmpty) {
+      return maps.map((map) => MovementDetail.fromMap(map)).toList();
+    } else {
+      return [];
+    }
   }
 
   Future<List<Map<String, dynamic>>> getConducesForSync() async {
