@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'm_conduce_detail.dart';
 import 'm_conduce_note.dart';
 
-// Helper functions for safe parsing
 int? _parseInt(dynamic value) {
   if (value == null) return null;
   if (value is int) return value;
@@ -32,6 +31,7 @@ class Conduce {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? deletedAt;
+  final DateTime? completedAt;
   final DateTime? serviceDate;
   final String? poNumber;
   final int? userId;
@@ -75,6 +75,7 @@ class Conduce {
   final int? certificationOfInstructions;
   final String? patientSignature;
   final String? employeeSignature;
+  final int? exonerated;
   final List<ConduceNote> notes;
   final List<ConduceDetail> details;
 
@@ -83,6 +84,7 @@ class Conduce {
     this.createdAt,
     this.updatedAt,
     this.deletedAt,
+    this.completedAt,
     this.serviceDate,
     this.poNumber,
     this.userId,
@@ -126,6 +128,7 @@ class Conduce {
     this.certificationOfInstructions,
     this.patientSignature,
     this.employeeSignature,
+    this.exonerated,
     required this.notes,
     required this.details,
   });
@@ -135,6 +138,7 @@ class Conduce {
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? deletedAt,
+    DateTime? completedAt,
     DateTime? serviceDate,
     String? poNumber,
     int? userId,
@@ -178,6 +182,7 @@ class Conduce {
     int? certificationOfInstructions,
     String? patientSignature,
     String? employeeSignature,
+    int? exonerated,
     List<ConduceNote>? notes,
     List<ConduceDetail>? details,
   }) {
@@ -186,6 +191,7 @@ class Conduce {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
+      completedAt: completedAt ?? this.completedAt,
       serviceDate: serviceDate ?? this.serviceDate,
       poNumber: poNumber ?? this.poNumber,
       userId: userId ?? this.userId,
@@ -235,6 +241,7 @@ class Conduce {
       certificationOfInstructions ?? this.certificationOfInstructions,
       patientSignature: patientSignature ?? this.patientSignature,
       employeeSignature: employeeSignature ?? this.employeeSignature,
+      exonerated: exonerated ?? this.exonerated,
       notes: notes ?? this.notes,
       details: details ?? this.details,
     );
@@ -249,6 +256,7 @@ class Conduce {
       createdAt: _parseDate(json["created_at"]),
       updatedAt: _parseDate(json["updated_at"]),
       deletedAt: _parseDate(json["deleted_at"]),
+      completedAt: _parseDate(json["completed_at"]),
       serviceDate: _parseDate(json["service_date"]),
       poNumber: json["po_number"],
       userId: _parseInt(json["user_id"]),
@@ -295,6 +303,7 @@ class Conduce {
       _parseInt(json["certification_of_instructions"]),
       patientSignature: json["patient_signature"],
       employeeSignature: json["employee_signature"],
+      exonerated: _parseInt(json["exonerated"]),
       notes: notesData == null
           ? []
           : List<ConduceNote>.from(
@@ -311,6 +320,7 @@ class Conduce {
     "created_at": createdAt?.toIso8601String(),
     "updated_at": updatedAt?.toIso8601String(),
     "deleted_at": deletedAt?.toIso8601String(),
+    "completed_at": completedAt?.toIso8601String(),
     "service_date": serviceDate?.toIso8601String(),
     "po_number": poNumber,
     "user_id": userId,
@@ -356,5 +366,6 @@ class Conduce {
     "certification_of_instructions": certificationOfInstructions,
     "patient_signature": patientSignature,
     "employee_signature": employeeSignature,
+    "exonerated": exonerated,
   };
 }

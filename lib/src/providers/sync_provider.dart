@@ -15,7 +15,7 @@ enum SyncStatus { pending, inProgress, completed, error }
 // Se añaden estados para controlar la fase de subida de datos.
 class SyncState {
   // Estados para la fase de subida
-  final SyncStatus uploadStatus;
+  final SyncStatus  uploadStatus;
   final bool isUploading;
 
   // Estados para la fase de bajada/descarga
@@ -93,9 +93,27 @@ class SyncNotifier extends StateNotifier<SyncState> {
     state = state.copyWith(uploadStatus: SyncStatus.inProgress, errorMessage: null, clearErrorMessage: true);
     try {
       // Obtener datos de SQLite
-      final conducesToSync = await dbHelper.getConducesForSync();
-      final detailsToSync = await dbHelper.getConduceDetailsForSync();
+      final conducesFromDb = await dbHelper.getConducesForSync();
+      final detailsFromDb = await dbHelper.getConduceDetailsForSync();
       final notesToSync = await dbHelper.getConduceNotesForSync();
+
+      // Prepara los datos para la subida, excluyendo las columnas nuevas.
+      // Esto es una solución temporal hasta que el backend sea actualizado.
+      final conducesToSync = conducesFromDb.map((conduce) {
+        final newConduce = Map<String, dynamic>.from(conduce);
+        // newConduce.remove('pay_method'); // Excluir la nueva columna
+        // if(newConduce['exonerated'] == 0) {
+        //   newConduce.remove('exonerated');
+        // }
+        return newConduce;
+      }).toList();
+
+      final detailsToSync = detailsFromDb.map((detail) {
+        final newDetail = Map<String, dynamic>.from(detail);
+        // newDetail.remove('warehouse_id'); // Excluir la nueva columna
+        return newDetail;
+      }).toList();
+
 
       // Endpoint 1: Subir Conduces
       if (conducesToSync.isNotEmpty) {

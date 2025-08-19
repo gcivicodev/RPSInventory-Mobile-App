@@ -85,6 +85,6 @@ class Warehouse {
     "last_location_lng": lastLocationLng,
     "address_1": address1,
     "address_2": address2,
-    // "show_mobileapp": showMobileapp,
+    "show_mobileapp": showMobileapp,
   };
 }

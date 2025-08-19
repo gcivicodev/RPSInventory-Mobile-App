@@ -183,6 +183,7 @@ class _ViewUpdateConduceState extends ConsumerState<ViewUpdateConduce> {
           employeeSignatureDatetime:
           employeeSignatureBase64 != null ? DateTime.now() : null,
           updatedAt: DateTime.now(),
+          exonerated: originalConduce.exonerated,
         );
 
         await ref.read(updateConduceProvider(updatedConduce).future);

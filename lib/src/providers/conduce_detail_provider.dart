@@ -16,7 +16,11 @@ double productQuantity
     final deductible = double.tryParse(data.product.pdeductible ?? '0.0') ?? 0.0;
     final quantity = data.productQuantity;
 
-    final deductibleTotal = (price * quantity) - deductible;
+    // final deductibleTotal = (price * quantity) - deductible;
+    double deductibleTotal = deductible * quantity;
+    if(data.product.pdeductibleType?.toLowerCase() == 'variable') {
+      deductibleTotal = deductible;
+    }
 
     final Map<String, dynamic> updatedData = {
       'product_id': data.product.id,

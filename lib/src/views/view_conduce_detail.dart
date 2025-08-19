@@ -55,56 +55,67 @@ class _ViewConduceDetailState extends ConsumerState<ViewConduceDetail> {
 
   @override
   Widget build(BuildContext context) {
-
     final conduceAsync = ref.watch(getConduceProvider(widget.conduceId));
     const primaryColor = Color(0xff0088CC);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Detalle del Conduce',
-          style: TextStyle(fontWeight: FontWeight.bold),
+    return conduceAsync.when(
+      loading: () => Scaffold(
+        appBar: AppBar(
+          title: const Text('Detalle del Conduce'),
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white,
         ),
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12.0),
-            child: TextButton(
-              onPressed: () async {
-                final allAssigned = await ref.read(
-                    checkIfConduceDetailsWereAssignedProvider(widget.conduceId)
-                        .future);
-                if (!allAssigned) {
-                  _showMissingProductsSnackbar();
-                  return;
-                }
-                ref.invalidate(getConduceProvider(widget.conduceId));
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ViewUpdateConduce(
-                      conduceId: widget.conduceId,
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (err, stack) => Scaffold(
+        appBar: AppBar(
+          title: const Text('Error'),
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white,
+        ),
+        body: Center(child: Text('Error: $err')),
+      ),
+      data: (conduceData) {
+        final bool hasDetails = conduceData.details.isNotEmpty;
+        final bool allProductsAssigned = hasDetails && conduceData.details.every((detail) => detail.productId != null);
+        final bool canUpdate = conduceData.status?.toLowerCase() == 'pendiente' && allProductsAssigned;
+
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text(
+              'Detalle del Conduce',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: primaryColor,
+            foregroundColor: Colors.white,
+            actions: [
+              if (canUpdate)
+                Padding(
+                  padding: const EdgeInsets.only(right: 12.0),
+                  child: TextButton(
+                    onPressed: () {
+                      ref.invalidate(getConduceProvider(widget.conduceId));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ViewUpdateConduce(
+                            conduceId: widget.conduceId,
+                          ),
+                        ),
+                      );
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text(
+                      'Actualizar conduce',
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
-                );
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.white,
-              ),
-              child: const Text(
-                'Actualizar conduce',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
+                ),
+            ],
           ),
-        ],
-      ),
-      body: conduceAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: $err')),
-        data: (conduceData) {
-          return SingleChildScrollView(
+          body: SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,19 +125,16 @@ class _ViewConduceDetailState extends ConsumerState<ViewConduceDetail> {
                 _buildPatientInfoCard(context, conduceData),
                 const SizedBox(height: 24),
                 _buildProductsCard(
-                    context, ref, widget.conduceId, conduceData.details),
+                    context, ref, widget.conduceId, conduceData.details, conduceData.status?.toLowerCase() == 'pendiente'),
                 const SizedBox(height: 24),
-                _buildNotesCard(context, ref, conduceData),
+                _buildNotesCard(context, ref, conduceData, conduceData.status?.toLowerCase() == 'pendiente'),
               ],
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
-
-
-
 
   Widget _buildGeneralInfoCard(
       BuildContext context, WidgetRef ref, Conduce conduceData) {
@@ -143,7 +151,7 @@ class _ViewConduceDetailState extends ConsumerState<ViewConduceDetail> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -152,21 +160,6 @@ class _ViewConduceDetailState extends ConsumerState<ViewConduceDetail> {
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    final allAssigned = await ref.read(
-                        checkIfConduceDetailsWereAssignedProvider(conduceData.id)
-                            .future);
-                    if (!allAssigned) {
-                      _showMissingProductsSnackbar();
-                      return;
-                    }
-                    await ref
-                        .read(updateConduceStatusProvider(conduceData.id).future);
-                    ref.invalidate(getConduceProvider(widget.conduceId));
-                  },
-                  child: const Text('Actualizar Estado'),
                 ),
               ],
             ),
@@ -310,7 +303,7 @@ class _ViewConduceDetailState extends ConsumerState<ViewConduceDetail> {
   }
 
   Widget _buildProductsCard(BuildContext context, WidgetRef ref, int conduceId,
-      List<ConduceDetail> details) {
+      List<ConduceDetail> details, bool canUpdate) {
     final double totalQuantity =
     details.fold(0.0, (sum, item) => sum + (item.productQuantity ?? 0));
 
@@ -343,7 +336,7 @@ class _ViewConduceDetailState extends ConsumerState<ViewConduceDetail> {
               itemCount: details.length,
               itemBuilder: (context, index) {
                 return _buildProductItem(
-                    context, ref, conduceId, details[index]);
+                    context, ref, conduceId, details[index], canUpdate);
               },
               separatorBuilder: (context, index) {
                 return const Column(
@@ -362,7 +355,7 @@ class _ViewConduceDetailState extends ConsumerState<ViewConduceDetail> {
   }
 
   Widget _buildProductItem(
-      BuildContext context, WidgetRef ref, int conduceId, ConduceDetail detail) {
+      BuildContext context, WidgetRef ref, int conduceId, ConduceDetail detail, bool canUpdate) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Column(
@@ -387,19 +380,20 @@ class _ViewConduceDetailState extends ConsumerState<ViewConduceDetail> {
                   ],
                 ),
               ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ViewUpdateConduceDetail(
-                        conduceDetail: detail,
+              if (canUpdate)
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ViewUpdateConduceDetail(
+                          conduceDetail: detail,
+                        ),
                       ),
-                    ),
-                  );
-                },
-                child: const Text('Asignar producto'),
-              ),
+                    );
+                  },
+                  child: const Text('Asignar producto'),
+                ),
             ],
           ),
           const SizedBox(height: 16),
@@ -441,8 +435,7 @@ class _ViewConduceDetailState extends ConsumerState<ViewConduceDetail> {
   }
 
   Widget _buildNotesCard(
-      BuildContext context, WidgetRef ref, Conduce conduceData) {
-
+      BuildContext context, WidgetRef ref, Conduce conduceData, bool canUpdate) {
     final int currentUserId = conduceData.userId ?? -1;
 
     return Card(
@@ -462,21 +455,21 @@ class _ViewConduceDetailState extends ConsumerState<ViewConduceDetail> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                ElevatedButton.icon(
-                  onPressed: () {
-
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ViewUpdateNote(
-                          conduceId: conduceData.id,
+                if (canUpdate)
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ViewUpdateNote(
+                            conduceId: conduceData.id,
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.add),
-                  label: const Text('Añadir'),
-                ),
+                      );
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('Añadir'),
+                  ),
               ],
             ),
           ),
@@ -531,11 +524,10 @@ class _ViewConduceDetailState extends ConsumerState<ViewConduceDetail> {
                         _buildTableCell(formattedDate),
                         TableCell(
                           verticalAlignment: TableCellVerticalAlignment.middle,
-                          child: canEdit
+                          child: canEdit && canUpdate
                               ? TextButton(
                             child: const Text('Actualizar'),
                             onPressed: () {
-
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(

@@ -22,7 +22,7 @@ class DBHelper {
     String path = join(documentsDirectory.path, 'rps_inventory.db');
     return await openDatabase(
       path,
-      version: 8,
+      version: 12,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -71,6 +71,33 @@ class DBHelper {
         }
       }
     }
+    if (oldVersion < 9) {
+      try {
+        await db.execute("ALTER TABLE warehouses ADD COLUMN show_mobileapp INTEGER;");
+      } catch (e) {
+        if (kDebugMode) {
+          print("Error al agregar la columna 'show_mobileapp' a 'warehouses' (v9), puede que ya exista: $e");
+        }
+      }
+    }
+    if (oldVersion < 10) {
+      try {
+        await db.execute("ALTER TABLE conduces ADD COLUMN exonerated INTEGER;");
+      } catch (e) {
+        if (kDebugMode) {
+          print("Error al agregar la columna 'exonerated' a 'conduces' (v10), puede que ya exista: $e");
+        }
+      }
+    }
+    if (oldVersion < 12) {
+      try {
+        await db.execute("ALTER TABLE conduces ADD COLUMN completed_at TEXT;");
+      } catch (e) {
+        if (kDebugMode) {
+          print("Error al agregar la columna 'completed_at' a 'conduces' (v12), puede que ya exista: $e");
+        }
+      }
+    }
     if (oldVersion < newVersion) {
       await _createTables(db);
     }
@@ -111,6 +138,7 @@ class DBHelper {
           created_at TEXT,
           updated_at TEXT,
           deleted_at TEXT,
+          completed_at TEXT,
           service_date TEXT,
           po_number TEXT,
           user_id INTEGER,
@@ -153,7 +181,8 @@ class DBHelper {
           guarantee_commitment INTEGER,
           certification_of_instructions INTEGER,
           patient_signature TEXT,
-          employee_signature TEXT
+          employee_signature TEXT,
+          exonerated INTEGER
       )
     ''');
 
@@ -222,7 +251,8 @@ class DBHelper {
           last_location_lat TEXT,
           last_location_lng TEXT,
           address_1 TEXT,
-          address_2 TEXT
+          address_2 TEXT,
+          show_mobileapp INTEGER
       )
     ''');
 
@@ -356,11 +386,17 @@ class DBHelper {
     }
   }
 
-  Future<void> addOrUpdateConduce(Conduce conduce) async {
+  Future<void> addOrUpdateConduce(Conduce conduce, {bool fromSync = false}) async {
     final db = await database;
     final batch = db.batch();
 
-    batch.insert('conduces', conduce.toMap(),
+    final conduceMap = conduce.toMap();
+
+    if (conduceMap['status'] == 'Completado') {
+      conduceMap['completed_at'] = DateTime.now().toIso8601String();
+    }
+
+    batch.insert('conduces', conduceMap,
         conflictAlgorithm: ConflictAlgorithm.replace);
     batch.delete('conduce_notes', where: 'conduce_id = ?', whereArgs: [conduce.id]);
     batch.delete('conduce_details', where: 'conduce_id = ?', whereArgs: [conduce.id]);
@@ -467,9 +503,16 @@ class DBHelper {
     final newStatus =
     (currentStatus?.toLowerCase() == 'pendiente') ? 'Completado' : 'Pendiente';
 
+    final Map<String, dynamic> updateData = {'status': newStatus};
+    if (newStatus == 'Completado') {
+      updateData['completed_at'] = DateTime.now().toIso8601String();
+    } else {
+      updateData['completed_at'] = null;
+    }
+
     await db.update(
       'conduces',
-      {'status': newStatus},
+      updateData,
       where: 'id = ?',
       whereArgs: [conduceId],
     );
