@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rpsinventory/src/models/m_movement_detail.dart';
 import 'package:rpsinventory/src/providers/movement_provider.dart';
 import 'package:rpsinventory/src/views/view_add_movement.dart';
+import 'package:rpsinventory/src/views/view_inventory.dart';
 
 class ViewMovements extends ConsumerStatefulWidget {
   const ViewMovements(
@@ -123,6 +124,32 @@ class _ViewMovementsState extends ConsumerState<ViewMovements> {
                 );
               },
             ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 0,
+        onTap: (index) {
+          if (index == 1) {
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation1, animation2) =>
+                const ViewInventory(),
+                transitionDuration: Duration.zero,
+                reverseTransitionDuration: Duration.zero,
+              ),
+            );
+          }
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.swap_horiz),
+            label: 'Movimientos',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.inventory),
+            label: 'Inventario',
           ),
         ],
       ),

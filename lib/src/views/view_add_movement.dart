@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rpsinventory/src/models/m_product.dart';
 import 'package:rpsinventory/src/models/m_warehouse.dart';
 import 'package:rpsinventory/src/providers/movement_provider.dart';
+import 'package:rpsinventory/src/providers/product_provider.dart';
 import 'package:rpsinventory/src/providers/products_provider.dart';
 import 'package:rpsinventory/src/providers/user_provider.dart';
 import 'package:rpsinventory/src/providers/warehouses_provider.dart';
 import 'package:rpsinventory/src/views/view_movements.dart';
+import 'package:rpsinventory/src/views/view_scanner.dart';
 
 class AddMovementView extends ConsumerStatefulWidget {
   static const path = '/movements/add';
@@ -27,6 +29,77 @@ class _AddMovementViewState extends ConsumerState<AddMovementView> {
   void dispose() {
     _quantityController.dispose();
     super.dispose();
+  }
+
+  Future<void> _scanBarcode() async {
+    final scannedBarcode = await Navigator.push<String?>(
+      context,
+      MaterialPageRoute(builder: (context) => const ViewScanner()),
+    );
+
+    if (scannedBarcode == null || scannedBarcode.isEmpty || !mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final results = await Future.wait([
+        ref.read(productByBarcodeNumberProvider(scannedBarcode).future),
+        ref.read(allProductsProvider.future),
+      ]);
+
+      if (!mounted) return;
+
+      final productFromScan = results[0] as Product?;
+      final allProducts = results[1] as List<Product>;
+
+      if (productFromScan != null) {
+        Product? productInList;
+        try {
+          productInList =
+              allProducts.firstWhere((p) => p.id == productFromScan.id);
+        } catch (e) {
+          productInList = null;
+        }
+
+        if (productInList != null) {
+          setState(() {
+            _selectedProduct = productInList;
+          });
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Producto encontrado pero no está en la lista de selección.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+            Text('Producto con barcode "$scannedBarcode" no encontrado.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al buscar producto: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    }
   }
 
   Future<void> _submitForm() async {
@@ -114,6 +187,12 @@ class _AddMovementViewState extends ConsumerState<AddMovementView> {
             style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            onPressed: _scanBarcode,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
