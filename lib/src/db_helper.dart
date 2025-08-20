@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:rpsinventory/src/models/m_conduce.dart';
 import 'package:rpsinventory/src/models/m_conduce_note.dart';
 import 'package:rpsinventory/src/models/m_deductible.dart';
+import 'package:rpsinventory/src/models/m_inventory_products_counts.dart';
 import 'package:rpsinventory/src/models/m_movement_detail.dart';
 import 'package:rpsinventory/src/models/m_movements.dart';
 import 'package:rpsinventory/src/models/m_product.dart';
@@ -259,6 +260,57 @@ class DBHelper {
     ''');
   }
 
+  Future<List<InventoryProductsCount>> getInventoryProductsCounts() async {
+    final db = await database;
+    const query = '''
+    SELECT 
+      ipc.*,
+      p.id as product_table_id,
+      p.name as product_name, p.sku, p.barcode_number, p.size, p.color, p.model,
+      w.id as warehouse_table_id,
+      w.name as warehouse_name
+    FROM inventory_products_counts ipc
+    LEFT JOIN products p ON ipc.product_id = p.id
+    LEFT JOIN warehouses w ON ipc.warehouse_id = w.id
+  ''';
+    final List<Map<String, dynamic>> maps = await db.rawQuery(query);
+
+    if (maps.isNotEmpty) {
+      return maps.map((map) {
+        final inventoryMap = Map<String, dynamic>.from(map);
+
+        if (map['product_table_id'] != null) {
+          final productData = {
+            'id': map['product_table_id'],
+            'name': map['product_name'],
+            'sku': map['sku'],
+            'barcode_number': map['barcode_number'],
+            'size': map['size'],
+            'color': map['color'],
+            'model': map['model'],
+          };
+          inventoryMap['product'] = productData;
+        } else {
+          inventoryMap['product'] = null;
+        }
+
+        if (map['warehouse_table_id'] != null) {
+          final warehouseData = {
+            'id': map['warehouse_table_id'],
+            'name': map['warehouse_name'],
+          };
+          inventoryMap['warehouse'] = warehouseData;
+        } else {
+          inventoryMap['warehouse'] = null;
+        }
+
+        return InventoryProductsCount.fromJson(inventoryMap);
+      }).toList();
+    } else {
+      return [];
+    }
+  }
+
   Future<void> addMovement({
     required int originWarehouseId,
     required int destinationWarehouseId,
@@ -271,7 +323,6 @@ class DBHelper {
     await db.transaction((txn) async {
       final now = DateTime.now().toIso8601String();
 
-      // Origen
       final originWp = await txn.query(
         'warehouses_products',
         where: 'warehouse_id = ? AND product_id = ?',
@@ -300,7 +351,6 @@ class DBHelper {
             'El producto no existe en el almacén de origen o no hay cantidad.');
       }
 
-      // Destino
       final destWp = await txn.query(
         'warehouses_products',
         where: 'warehouse_id = ? AND product_id = ?',
@@ -330,7 +380,6 @@ class DBHelper {
         });
       }
 
-      // Crear movimiento
       await txn.insert('movements', {
         'created_at': now,
         'updated_at': now,

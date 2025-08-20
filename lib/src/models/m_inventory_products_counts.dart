@@ -1,5 +1,8 @@
 import 'dart:convert';
 
+import 'package:rpsinventory/src/models/m_product.dart';
+import 'package:rpsinventory/src/models/m_warehouse.dart';
+
 int? _parseInt(dynamic value) {
   if (value == null) return null;
   if (value is int) return value;
@@ -14,8 +17,10 @@ DateTime? _parseDate(dynamic value) {
 }
 
 List<InventoryProductsCount> inventoryProductsCountsFromJson(String str) =>
-    List<InventoryProductsCount>.from(json.decode(str).map((x) => InventoryProductsCount.fromJson(x)));
-String inventoryProductsCountToJson(InventoryProductsCount data) => json.encode(data.toMap());
+    List<InventoryProductsCount>.from(
+        json.decode(str).map((x) => InventoryProductsCount.fromJson(x)));
+String inventoryProductsCountToJson(InventoryProductsCount data) =>
+    json.encode(data.toMap());
 
 class InventoryProductsCount {
   final int id;
@@ -31,6 +36,8 @@ class InventoryProductsCount {
   final DateTime? end;
   final int? localId;
   final String? username;
+  final Product? product;
+  final Warehouse? warehouse;
 
   InventoryProductsCount({
     required this.id,
@@ -46,6 +53,8 @@ class InventoryProductsCount {
     this.end,
     this.localId,
     this.username,
+    this.product,
+    this.warehouse,
   });
 
   factory InventoryProductsCount.fromJson(Map<String, dynamic> json) {
@@ -63,6 +72,11 @@ class InventoryProductsCount {
       end: _parseDate(json["end"]),
       localId: _parseInt(json["local_id"]),
       username: json["username"],
+      product:
+      json['product'] != null ? Product.fromMap(json['product']) : null,
+      warehouse: json['warehouse'] != null
+          ? Warehouse.fromJson(json['warehouse'])
+          : null,
     );
   }
 
