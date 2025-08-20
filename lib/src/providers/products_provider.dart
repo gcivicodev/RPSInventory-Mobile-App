@@ -51,3 +51,9 @@ final getProductsByWarehouseProvider = FutureProvider.autoDispose.family<List<Pr
     hcpcCode: params.hcpcCode,
   );
 });
+
+
+final allProductsProvider = FutureProvider<List<Product>>((ref) async {
+  final dbHelper = DBHelper.instance;
+  return dbHelper.getAllProducts();
+});

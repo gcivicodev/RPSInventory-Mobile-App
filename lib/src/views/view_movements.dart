@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rpsinventory/src/models/m_movement_detail.dart';
-import 'package:rpsinventory/src/providers/movements_provider.dart';
+import 'package:rpsinventory/src/providers/movement_provider.dart';
+import 'package:rpsinventory/src/views/view_add_movement.dart';
 
 class ViewMovements extends ConsumerStatefulWidget {
-  const ViewMovements({super.key});
+  const ViewMovements(
+      {super.key, this.showSuccessSnackbar = false, this.successMessage});
   static String path = '/movements';
+  final bool showSuccessSnackbar;
+  final String? successMessage;
 
   @override
   ConsumerState<ViewMovements> createState() => _ViewMovementsState();
@@ -23,6 +27,17 @@ class _ViewMovementsState extends ConsumerState<ViewMovements> {
             _searchController.text;
       }
     });
+
+    if (widget.showSuccessSnackbar) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.successMessage ?? 'Operación exitosa.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      });
+    }
   }
 
   @override
@@ -45,6 +60,22 @@ class _ViewMovementsState extends ConsumerState<ViewMovements> {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const AddMovementView(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.add, color: Colors.white),
+            label: const Text(
+              'Añadir movimiento',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
       ),
       body: Column(
         children: [

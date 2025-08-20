@@ -241,6 +241,95 @@ class DBHelper {
     ''');
   }
 
+  Future<void> addMovement({
+    required int originWarehouseId,
+    required int destinationWarehouseId,
+    required int productId,
+    required double quantity,
+    int? userId,
+    String? username,
+  }) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      final now = DateTime.now().toIso8601String();
+
+      // Origen
+      final originWp = await txn.query(
+        'warehouses_products',
+        where: 'warehouse_id = ? AND product_id = ?',
+        whereArgs: [originWarehouseId, productId],
+      );
+
+      double originBefore = 0.0;
+      if (originWp.isNotEmpty) {
+        originBefore = (originWp.first['current_quantity'] as num).toDouble();
+      }
+
+      if (originBefore < quantity) {
+        throw Exception('Cantidad insuficiente en el almacén de origen.');
+      }
+      final originAfter = originBefore - quantity;
+
+      if (originWp.isNotEmpty) {
+        await txn.update(
+          'warehouses_products',
+          {'current_quantity': originAfter, 'updated_at': now},
+          where: 'id = ?',
+          whereArgs: [originWp.first['id']],
+        );
+      } else {
+        throw Exception(
+            'El producto no existe en el almacén de origen o no hay cantidad.');
+      }
+
+      // Destino
+      final destWp = await txn.query(
+        'warehouses_products',
+        where: 'warehouse_id = ? AND product_id = ?',
+        whereArgs: [destinationWarehouseId, productId],
+      );
+
+      double destBefore = 0.0;
+      if (destWp.isNotEmpty) {
+        destBefore = (destWp.first['current_quantity'] as num).toDouble();
+      }
+      final destAfter = destBefore + quantity;
+
+      if (destWp.isNotEmpty) {
+        await txn.update(
+          'warehouses_products',
+          {'current_quantity': destAfter, 'updated_at': now},
+          where: 'id = ?',
+          whereArgs: [destWp.first['id']],
+        );
+      } else {
+        await txn.insert('warehouses_products', {
+          'warehouse_id': destinationWarehouseId,
+          'product_id': productId,
+          'current_quantity': destAfter,
+          'created_at': now,
+          'updated_at': now,
+        });
+      }
+
+      // Crear movimiento
+      await txn.insert('movements', {
+        'created_at': now,
+        'updated_at': now,
+        'warehouse_origin_id': originWarehouseId,
+        'product_id': productId,
+        'warehouse_origin_product_quantity_before_movement': originBefore,
+        'product_quantity_moved': quantity,
+        'warehouse_origin_product_quantity_after_movement': originAfter,
+        'warehouse_destination_id': destinationWarehouseId,
+        'warehouse_destination_product_quantity_before_movement': destBefore,
+        'warehouse_destination_product_quantity_after_movement': destAfter,
+        'user_id': userId,
+        'username': username,
+      });
+    });
+  }
+
   Future<List<MovementDetail>> getMovements({String? searchTerm}) async {
     final db = await database;
     String query = '''
@@ -332,6 +421,16 @@ class DBHelper {
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  Future<List<Product>> getAllProducts() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query('products');
+    if (maps.isNotEmpty) {
+      return maps.map((map) => Product.fromMap(map)).toList();
+    } else {
+      return [];
+    }
+  }
+
   Future<List<Product>> getProducts({String? hcpcCode}) async {
     final db = await database;
     if (hcpcCode == null || hcpcCode.isEmpty) {
@@ -363,7 +462,8 @@ class DBHelper {
       WHERE p.id = ?
     ''';
 
-    final List<Map<String, dynamic>> maps = await db.rawQuery(query, [conduceId, productId]);
+    final List<Map<String, dynamic>> maps =
+    await db.rawQuery(query, [conduceId, productId]);
 
     if (maps.isNotEmpty) {
       return Product.fromMap(maps.first);
@@ -396,7 +496,8 @@ class DBHelper {
     }
   }
 
-  Future<void> addOrUpdateConduce(Conduce conduce, {bool fromSync = false}) async {
+  Future<void> addOrUpdateConduce(Conduce conduce,
+      {bool fromSync = false}) async {
     final db = await database;
     final batch = db.batch();
 
@@ -408,8 +509,10 @@ class DBHelper {
 
     batch.insert('conduces', conduceMap,
         conflictAlgorithm: ConflictAlgorithm.replace);
-    batch.delete('conduce_notes', where: 'conduce_id = ?', whereArgs: [conduce.id]);
-    batch.delete('conduce_details', where: 'conduce_id = ?', whereArgs: [conduce.id]);
+    batch.delete('conduce_notes',
+        where: 'conduce_id = ?', whereArgs: [conduce.id]);
+    batch.delete('conduce_details',
+        where: 'conduce_id = ?', whereArgs: [conduce.id]);
 
     for (final note in conduce.notes) {
       final noteMap = note.toMap();
