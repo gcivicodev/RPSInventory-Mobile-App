@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:rpsinventory/src/models/m_inventory_products_counts.dart';
+import 'package:rpsinventory/src/providers/auth_provider.dart';
 import 'package:rpsinventory/src/providers/inventory_products_counts_provider.dart';
+import 'package:rpsinventory/src/views/add_inventory.dart';
+import 'package:rpsinventory/src/views/view_login.dart';
 import 'package:rpsinventory/src/views/view_movements.dart';
 
 class ViewInventory extends ConsumerWidget {
@@ -23,6 +26,31 @@ class ViewInventory extends ConsumerWidget {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await ref.read(authProvider.notifier).logout();
+              // ignore: use_build_context_synchronously
+              Navigator.pushNamedAndRemoveUntil(
+                  context, ViewLogin.path, (route) => false);
+            },
+            tooltip: 'Cerrar sesión',
+          ),
+          TextButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AddInventory()),
+              ).then((_) => ref.invalidate(inventoryProductsCountsProvider));
+            },
+            icon: const Icon(Icons.add, color: Colors.white),
+            label: const Text(
+              'Añadir inventario',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
       ),
       body: inventoryAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -37,13 +65,18 @@ class ViewInventory extends ConsumerWidget {
               ),
             );
           }
-          return ListView.builder(
-            padding: const EdgeInsets.all(8.0),
-            itemCount: inventory.length,
-            itemBuilder: (context, index) {
-              final item = inventory[index];
-              return _buildInventoryCard(context, item);
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(inventoryProductsCountsProvider);
             },
+            child: ListView.builder(
+              padding: const EdgeInsets.all(8.0),
+              itemCount: inventory.length,
+              itemBuilder: (context, index) {
+                final item = inventory[index];
+                return _buildInventoryCard(context, ref, item);
+              },
+            ),
           );
         },
       ),
@@ -77,7 +110,8 @@ class ViewInventory extends ConsumerWidget {
   }
 
   Widget _buildInventoryCard(
-      BuildContext context, InventoryProductsCount item) {
+      BuildContext context, WidgetRef ref, InventoryProductsCount item) {
+    const primaryColor = Color(0xff0088CC);
     return Card(
       elevation: 4,
       margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
@@ -93,17 +127,34 @@ class ViewInventory extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: Text(
-                    item.product?.name ?? 'Producto no disponible',
-                    style: Theme.of(context).textTheme.titleLarge,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.product?.name ?? 'Producto no disponible',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Usuario: ${item.username ?? 'N/A'}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  'Usuario: ${item.username ?? 'N/A'}',
-                  style: Theme.of(context).textTheme.titleSmall,
-                  textAlign: TextAlign.right,
-                ),
+                TextButton(
+                  child: const Text('Editar',
+                      style: TextStyle(color: primaryColor)),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            AddInventory(inventoryCount: item),
+                      ),
+                    ).then(
+                            (_) => ref.invalidate(inventoryProductsCountsProvider));
+                  },),
               ],
             ),
             const Divider(height: 24),

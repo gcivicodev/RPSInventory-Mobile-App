@@ -31,16 +31,11 @@ class _ViewSyncCarreroState extends ConsumerState<ViewSyncCarrero> {
       final userId = userData.id;
 
       if (userId != null) {
-        // Llama al método principal que orquesta subida y bajada.
         Future.microtask(
                 () => ref.read(syncProvider.notifier).startSync(token, userId.toString()));
       } else {
-        // Manejar error: no se encontró el ID del usuario
-        // Aquí podrías, por ejemplo, navegar a la pantalla de login.
       }
     } else {
-      // Manejar error: no se encontró el token o los datos del usuario
-      // Aquí también podrías navegar a la pantalla de login.
     }
   }
 
@@ -51,7 +46,6 @@ class _ViewSyncCarreroState extends ConsumerState<ViewSyncCarrero> {
 
     ref.listen<SyncState>(syncProvider, (previous, next) {
       if (next.isSyncComplete) {
-        // Navega a la siguiente pantalla cuando toda la sincronización (subida y bajada) ha terminado.
         Navigator.of(context).pushReplacementNamed(ViewConduces.path);
       }
     });
@@ -66,11 +60,18 @@ class _ViewSyncCarreroState extends ConsumerState<ViewSyncCarrero> {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              _initiateSync();
+            },
+          ),
+        ],
       ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
-          // Elige qué widget mostrar basado en la fase de sincronización
           child: syncState.isUploading
               ? _buildUploadingView(syncState)
               : _buildDownloadingView(syncState),
@@ -96,7 +97,6 @@ class _ViewSyncCarreroState extends ConsumerState<ViewSyncCarrero> {
     );
   }
 
-  // --- WIDGET PARA LA VISTA DE SUBIDA DE DATOS ---
   Widget _buildUploadingView(SyncState syncState) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -124,7 +124,6 @@ class _ViewSyncCarreroState extends ConsumerState<ViewSyncCarrero> {
     );
   }
 
-  // --- WIDGET PARA LA VISTA DE BAJADA DE DATOS ---
   Widget _buildDownloadingView(SyncState syncState) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,

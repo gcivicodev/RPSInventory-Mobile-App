@@ -1,6 +1,7 @@
 import 'dart:convert';
 
-List<Product> productsFromJson(String str) => List<Product>.from(json.decode(str).map((x) => Product.fromJson(x)));
+List<Product> productsFromJson(String str) =>
+    List<Product>.from(json.decode(str).map((x) => Product.fromJson(x)));
 
 class Product {
   final int id;
@@ -61,7 +62,6 @@ class Product {
     this.pdeductibleType,
   });
 
-  /// Helper function to safely parse a value to an integer.
   static int? _parseInt(dynamic value) {
     if (value == null) return null;
     if (value is int) return value;
@@ -69,9 +69,8 @@ class Product {
     return null;
   }
 
-  // Factory for creating from the API's JSON
   factory Product.fromJson(Map<String, dynamic> json) => Product(
-    id: json["id"], // Assuming 'id' is always a valid integer from the API
+    id: json["id"],
     createdAt: json["created_at"],
     updatedAt: json["updated_at"],
     deletedAt: json["deleted_at"],
@@ -91,13 +90,12 @@ class Product {
     deductible: json["deductible"],
     deductibleType: json["deductible_type"],
     price: json["price"],
-    manufactured: _parseInt(json["manufactured"]), // Safely parsing the value
+    manufactured: _parseInt(json["manufactured"]),
     hcpcCode: json["hcpc_code"],
     hcpcShortDescription: json["hcpc_short_description"],
     deductibles: jsonEncode(json["deductibles"]),
   );
 
-  // Method to convert to a Map for the DB
   Map<String, dynamic> toMap() => {
     "id": id,
     "created_at": createdAt,
@@ -124,7 +122,6 @@ class Product {
     "hcpc_short_description": hcpcShortDescription,
   };
 
-  // Factory for creating from a DB Map
   factory Product.fromMap(Map<String, dynamic> map) => Product(
     id: map["id"],
     createdAt: map["created_at"],
@@ -150,7 +147,15 @@ class Product {
     hcpcCode: map["hcpc_code"],
     hcpcShortDescription: map["hcpc_short_description"],
     currentQuantity: map["current_quantity"],
-    pdeductible: map['pdeductible']?.toString(), // Added pdeductible
-    pdeductibleType: map['pdeductible_type'], // Added pdeductible_type
+    pdeductible: map['pdeductible']?.toString(),
+    pdeductibleType: map['pdeductible_type'],
   );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+          other is Product && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 }

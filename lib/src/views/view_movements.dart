@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rpsinventory/src/models/m_movement_detail.dart';
+import 'package:rpsinventory/src/providers/auth_provider.dart';
 import 'package:rpsinventory/src/providers/movement_provider.dart';
 import 'package:rpsinventory/src/views/view_add_movement.dart';
 import 'package:rpsinventory/src/views/view_inventory.dart';
+import 'package:rpsinventory/src/views/view_login.dart';
 
 class ViewMovements extends ConsumerStatefulWidget {
   const ViewMovements(
@@ -62,6 +64,16 @@ class _ViewMovementsState extends ConsumerState<ViewMovements> {
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await ref.read(authProvider.notifier).logout();
+              // ignore: use_build_context_synchronously
+              Navigator.pushNamedAndRemoveUntil(
+                  context, ViewLogin.path, (route) => false);
+            },
+            tooltip: 'Cerrar sesión',
+          ),
           TextButton.icon(
             onPressed: () {
               Navigator.of(context).push(

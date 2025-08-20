@@ -272,6 +272,7 @@ class DBHelper {
     FROM inventory_products_counts ipc
     LEFT JOIN products p ON ipc.product_id = p.id
     LEFT JOIN warehouses w ON ipc.warehouse_id = w.id
+    ORDER BY ipc.created_at DESC
   ''';
     final List<Map<String, dynamic>> maps = await db.rawQuery(query);
 
@@ -740,7 +741,7 @@ class DBHelper {
   }) async {
     final db = await database;
 
-    String whereClause = 'wp.warehouse_id = ? AND wp.current_quantity > 0';
+    String whereClause = 'wp.warehouse_id = ?';
     List<dynamic> whereArgs = [warehouseId];
 
     if (productBarcodeNumber != null && productBarcodeNumber.isNotEmpty) {
@@ -843,5 +844,33 @@ class DBHelper {
     ''', [conduceId]);
     final count = Sqflite.firstIntValue(result);
     return count == 0;
+  }
+
+  Future<void> addInventoryProductCount(
+      InventoryProductsCount inventoryCount) async {
+    final db = await database;
+    await db.insert(
+      'inventory_products_counts',
+      inventoryCount.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> updateInventoryProductCount(
+      InventoryProductsCount inventoryCount) async {
+    final db = await database;
+    final dataToUpdate = {
+      'updated_at': DateTime.now().toIso8601String(),
+      'end': DateTime.now().toIso8601String(),
+      'count': inventoryCount.count,
+      'current_quantity': inventoryCount.currentQuantity,
+    };
+
+    await db.update(
+      'inventory_products_counts',
+      dataToUpdate,
+      where: 'id = ?',
+      whereArgs: [inventoryCount.id],
+    );
   }
 }

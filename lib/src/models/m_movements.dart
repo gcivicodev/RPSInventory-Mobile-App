@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-// Funciones auxiliares para parseo seguro
 int? _parseInt(dynamic value) {
   if (value == null) return null;
   if (value is int) return value;
@@ -75,7 +74,7 @@ class Movement {
     warehouseDestinationProductQuantityBeforeMovement: _parseDouble(json["warehouse_destination_product_quantity_before_movement"]),
     warehouseDestinationProductQuantityAfterMovement: _parseDouble(json["warehouse_destination_product_quantity_after_movement"]),
     username: json["username"],
-    localId: _parseInt(json["local_id"]),
+    localId: _parseInt(json["local_id"] ?? json["id"]),
   );
 
   Map<String, dynamic> toMap() => {

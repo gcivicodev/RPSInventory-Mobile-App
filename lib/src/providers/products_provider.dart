@@ -57,3 +57,11 @@ final allProductsProvider = FutureProvider<List<Product>>((ref) async {
   final dbHelper = DBHelper.instance;
   return dbHelper.getAllProducts();
 });
+
+
+final productsByWarehouseProvider =
+FutureProvider.autoDispose.family<List<Product>, int>((ref, warehouseId) async {
+  final dbHelper = DBHelper.instance;
+  if (warehouseId == 0) return [];
+  return await dbHelper.getProductsByWarehouse(warehouseId: warehouseId);
+});

@@ -23,7 +23,7 @@ String inventoryProductsCountToJson(InventoryProductsCount data) =>
     json.encode(data.toMap());
 
 class InventoryProductsCount {
-  final int id;
+  final int? id;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? deletedAt;
@@ -40,7 +40,7 @@ class InventoryProductsCount {
   final Warehouse? warehouse;
 
   InventoryProductsCount({
-    required this.id,
+    this.id,
     this.createdAt,
     this.updatedAt,
     this.deletedAt,
@@ -70,7 +70,7 @@ class InventoryProductsCount {
       count: json["count"],
       start: _parseDate(json["start"]),
       end: _parseDate(json["end"]),
-      localId: _parseInt(json["local_id"]),
+      localId: _parseInt(json["local_id"] ?? json["id"]),
       username: json["username"],
       product:
       json['product'] != null ? Product.fromMap(json['product']) : null,
@@ -80,19 +80,24 @@ class InventoryProductsCount {
     );
   }
 
-  Map<String, dynamic> toMap() => {
-    "id": id,
-    "created_at": createdAt?.toIso8601String(),
-    "updated_at": updatedAt?.toIso8601String(),
-    "deleted_at": deletedAt?.toIso8601String(),
-    "user_id": userId,
-    "warehouse_id": warehouseId,
-    "product_id": productId,
-    "current_quantity": currentQuantity,
-    "count": count,
-    "start": start?.toIso8601String(),
-    "end": end?.toIso8601String(),
-    "local_id": localId,
-    "username": username,
-  };
+  Map<String, dynamic> toMap() {
+    final Map<String, dynamic> data = {
+      'created_at': createdAt?.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
+      'deleted_at': deletedAt?.toIso8601String(),
+      'user_id': userId,
+      'warehouse_id': warehouseId,
+      'product_id': productId,
+      'current_quantity': currentQuantity,
+      'count': count,
+      'start': start?.toIso8601String(),
+      'end': end?.toIso8601String(),
+      'local_id': localId,
+      'username': username,
+    };
+    if (id != null) {
+      data['id'] = id;
+    }
+    return data;
+  }
 }

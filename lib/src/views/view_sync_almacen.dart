@@ -55,6 +55,14 @@ class _ViewSyncAlmacenState extends ConsumerState<ViewSyncAlmacen> {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              _initiateSync();
+            },
+          ),
+        ],
       ),
       body: Center(
         child: Padding(

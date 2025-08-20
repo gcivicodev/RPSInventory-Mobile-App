@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:rpsinventory/src/models/m_conduce.dart';
+import 'package:rpsinventory/src/providers/auth_provider.dart';
 import 'package:rpsinventory/src/providers/conduces_provider.dart';
 import 'package:rpsinventory/src/providers/connectivity_provider.dart';
 import 'package:rpsinventory/src/views/view_conduce_detail.dart';
+import 'package:rpsinventory/src/views/view_login.dart';
 import 'package:rpsinventory/src/views/view_sync_carrero.dart';
 
 class ViewConduces extends ConsumerWidget {
@@ -14,7 +16,6 @@ class ViewConduces extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Observa el estado de los providers.
     final conducesAsync = ref.watch(conducesProvider);
     final connectivity = ref.watch(connectivityStreamProvider);
     const primaryColor = Color(0xff0088CC);
@@ -29,7 +30,6 @@ class ViewConduces extends ConsumerWidget {
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
         actions: [
-          // Botón para sincronizar
           IconButton(
             icon: const Icon(Icons.sync),
             onPressed: () async {
@@ -38,7 +38,16 @@ class ViewConduces extends ConsumerWidget {
             },
             tooltip: 'Sincronizar',
           ),
-          // Indicador de estado de conexión
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await ref.read(authProvider.notifier).logout();
+              // ignore: use_build_context_synchronously
+              Navigator.pushNamedAndRemoveUntil(
+                  context, ViewLogin.path, (route) => false);
+            },
+            tooltip: 'Cerrar sesión',
+          ),
           connectivity.when(
             data: (result) {
               final hasConnection = result.contains(ConnectivityResult.mobile) ||
@@ -84,7 +93,6 @@ class ViewConduces extends ConsumerWidget {
             itemCount: conduces.length,
             itemBuilder: (context, index) {
               final conduce = conduces[index];
-              // **MODIFICADO**: Se pasa `ref` al método que construye la tarjeta.
               return _buildConduceCard(context, ref, conduce, primaryColor);
             },
           );
@@ -93,7 +101,6 @@ class ViewConduces extends ConsumerWidget {
     );
   }
 
-  /// **MODIFICADO**: Acepta `ref` para poder invalidar el provider después de la navegación.
   Widget _buildConduceCard(BuildContext context, WidgetRef ref, Conduce conduce, Color primaryColor) {
     final statusColor = (conduce.status?.toLowerCase() == 'completado')
         ? Colors.green.shade700
@@ -193,16 +200,13 @@ class ViewConduces extends ConsumerWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              // **MODIFICADO**: Se convierte en `async` para esperar el resultado de la navegación.
               onPressed: () async {
-                // Espera a que la pantalla de detalle se cierre.
                 await Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => ViewConduceDetail(conduceId: conduce.id),
                   ),
                 );
-                // Una vez que se regresa, invalida el provider para refrescar la lista.
                 ref.invalidate(conducesProvider);
               },
               style: ElevatedButton.styleFrom(

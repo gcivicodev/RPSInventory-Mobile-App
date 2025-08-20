@@ -14,7 +14,8 @@ DateTime? _parseDate(dynamic value) {
   return null;
 }
 
-List<Warehouse> warehousesFromJson(String str) => List<Warehouse>.from(json.decode(str).map((x) => Warehouse.fromJson(x)));
+List<Warehouse> warehousesFromJson(String str) =>
+    List<Warehouse>.from(json.decode(str).map((x) => Warehouse.fromJson(x)));
 String warehouseToJson(Warehouse data) => json.encode(data.toMap());
 
 class Warehouse {
@@ -87,4 +88,12 @@ class Warehouse {
     "address_2": address2,
     "show_mobileapp": showMobileapp,
   };
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+          other is Warehouse && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
