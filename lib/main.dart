@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:rpsinventory/src/views/view_conduces.dart';
+import 'package:rpsinventory/src/views/view_inventory.dart';
 import 'package:rpsinventory/src/views/view_login.dart';
 import 'package:rpsinventory/src/views/view_movements.dart';
 import 'package:rpsinventory/src/views/view_sync_almacen.dart';
@@ -39,6 +40,7 @@ class MyApp extends StatelessWidget {
         ViewConduces.path: (context) => const ViewConduces(),
         ViewSyncAlmacen.path: (context) => const ViewSyncAlmacen(),
         ViewMovements.path: (context) => const ViewMovements(),
+        ViewInventory.path: (context) => const ViewInventory(),
       },
     );
   }

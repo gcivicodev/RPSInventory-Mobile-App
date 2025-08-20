@@ -24,7 +24,7 @@ class DBHelper {
     String path = join(documentsDirectory.path, 'rps_inventory.db');
     return await openDatabase(
       path,
-      version: 13,
+      version: 14,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -35,7 +35,7 @@ class DBHelper {
   }
 
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 13) {
+    if (oldVersion < 14) {
       await _createTables(db);
     }
   }
@@ -237,6 +237,24 @@ class DBHelper {
           warehouse_destination_product_quantity_after_movement REAL,
           username TEXT,
           local_id INTEGER
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS inventory_products_counts(
+          id INTEGER PRIMARY KEY,
+          created_at TEXT,
+          updated_at TEXT,
+          deleted_at TEXT,
+          user_id TEXT,
+          warehouse_id TEXT,
+          product_id TEXT,
+          current_quantity TEXT,
+          count TEXT,
+          start TEXT,
+          end TEXT,
+          local_id INTEGER,
+          username TEXT
       )
     ''');
   }

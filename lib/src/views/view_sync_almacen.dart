@@ -31,8 +31,9 @@ class _ViewSyncAlmacenState extends ConsumerState<ViewSyncAlmacen> {
       final userId = userData.id;
 
       if (userId != null) {
-        Future.microtask(
-                () => ref.read(syncProvider.notifier).startSyncAlmacen(token, userId.toString()));
+        Future.microtask(() => ref
+            .read(syncProvider.notifier)
+            .startSyncAlmacen(token, userId.toString()));
       }
     }
   }
@@ -109,6 +110,11 @@ class _ViewSyncAlmacenState extends ConsumerState<ViewSyncAlmacen> {
         _buildSyncItem(
           label: 'Sincronizando Movimientos',
           status: syncState.movementsStatus,
+        ),
+        const SizedBox(height: 24),
+        _buildSyncItem(
+          label: 'Sincronizando Inventario',
+          status: syncState.inventoryProductsCountsStatus,
         ),
         if (syncState.errorMessage != null)
           Padding(

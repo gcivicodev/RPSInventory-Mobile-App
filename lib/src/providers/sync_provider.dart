@@ -5,6 +5,7 @@ import 'package:rpsinventory/src/config/main_config.dart';
 import 'package:rpsinventory/src/db_helper.dart';
 import 'package:rpsinventory/src/models/m_conduce.dart';
 import 'package:rpsinventory/src/models/m_deductible.dart';
+import 'package:rpsinventory/src/models/m_inventory_products_counts.dart';
 import 'package:rpsinventory/src/models/m_movements.dart';
 import 'package:rpsinventory/src/models/m_product.dart';
 import 'package:rpsinventory/src/models/m_warehouse.dart';
@@ -22,6 +23,7 @@ class SyncState {
   final SyncStatus conducesStatus;
   final SyncStatus deductiblesStatus;
   final SyncStatus movementsStatus;
+  final SyncStatus inventoryProductsCountsStatus;
   final bool isSyncComplete;
   final String? errorMessage;
 
@@ -34,6 +36,7 @@ class SyncState {
     this.conducesStatus = SyncStatus.pending,
     this.deductiblesStatus = SyncStatus.pending,
     this.movementsStatus = SyncStatus.pending,
+    this.inventoryProductsCountsStatus = SyncStatus.pending,
     this.isSyncComplete = false,
     this.errorMessage,
   });
@@ -47,6 +50,7 @@ class SyncState {
     SyncStatus? conducesStatus,
     SyncStatus? deductiblesStatus,
     SyncStatus? movementsStatus,
+    SyncStatus? inventoryProductsCountsStatus,
     bool? isSyncComplete,
     String? errorMessage,
     bool clearErrorMessage = false,
@@ -61,8 +65,11 @@ class SyncState {
       conducesStatus: conducesStatus ?? this.conducesStatus,
       deductiblesStatus: deductiblesStatus ?? this.deductiblesStatus,
       movementsStatus: movementsStatus ?? this.movementsStatus,
+      inventoryProductsCountsStatus:
+      inventoryProductsCountsStatus ?? this.inventoryProductsCountsStatus,
       isSyncComplete: isSyncComplete ?? this.isSyncComplete,
-      errorMessage: clearErrorMessage ? null : errorMessage ?? this.errorMessage,
+      errorMessage:
+      clearErrorMessage ? null : errorMessage ?? this.errorMessage,
     );
   }
 }
@@ -92,11 +99,14 @@ class SyncNotifier extends StateNotifier<SyncState> {
     if (state.productsStatus != SyncStatus.completed) return;
     await _syncMovementsAlmacen(token);
     if (state.movementsStatus != SyncStatus.completed) return;
+    await _syncInventory(token);
+    if (state.inventoryProductsCountsStatus != SyncStatus.completed) return;
 
     if (state.warehousesStatus == SyncStatus.completed &&
         state.warehousesProductsStatus == SyncStatus.completed &&
         state.productsStatus == SyncStatus.completed &&
-        state.movementsStatus == SyncStatus.completed) {
+        state.movementsStatus == SyncStatus.completed &&
+        state.inventoryProductsCountsStatus == SyncStatus.completed) {
       state = state.copyWith(isSyncComplete: true);
     }
   }
@@ -107,10 +117,14 @@ class SyncNotifier extends StateNotifier<SyncState> {
     await db.delete('warehouses_products');
     await db.delete('products');
     await db.delete('movements');
+    await db.delete('inventory_products_counts');
   }
 
   Future<void> _uploadAllData(String token) async {
-    state = state.copyWith(uploadStatus: SyncStatus.inProgress, errorMessage: null, clearErrorMessage: true);
+    state = state.copyWith(
+        uploadStatus: SyncStatus.inProgress,
+        errorMessage: null,
+        clearErrorMessage: true);
     try {
       final conducesFromDb = await dbHelper.getConducesForSync();
       final detailsFromDb = await dbHelper.getConduceDetailsForSync();
@@ -151,7 +165,6 @@ class SyncNotifier extends StateNotifier<SyncState> {
       }
 
       state = state.copyWith(uploadStatus: SyncStatus.completed);
-
     } catch (e) {
       state = state.copyWith(
         uploadStatus: SyncStatus.error,
@@ -165,7 +178,8 @@ class SyncNotifier extends StateNotifier<SyncState> {
     required String token,
     required Map<String, dynamic> body,
   }) async {
-    final url = Uri.parse('${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/$endpoint');
+    final url = Uri.parse(
+        '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/$endpoint');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -173,7 +187,8 @@ class SyncNotifier extends StateNotifier<SyncState> {
     );
 
     if (response.statusCode != 200) {
-      final error = json.decode(response.body)['error'] ?? 'Error en $endpoint';
+      final error =
+          json.decode(response.body)['error'] ?? 'Error en $endpoint';
       throw Exception(error);
     }
   }
@@ -204,9 +219,13 @@ class SyncNotifier extends StateNotifier<SyncState> {
   }
 
   Future<void> _syncProducts(String token) async {
-    state = state.copyWith(productsStatus: SyncStatus.inProgress, errorMessage: null, clearErrorMessage: true);
+    state = state.copyWith(
+        productsStatus: SyncStatus.inProgress,
+        errorMessage: null,
+        clearErrorMessage: true);
     try {
-      final url = Uri.parse('${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_products');
+      final url = Uri.parse(
+          '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_products');
       final response = await http.post(url,
           headers: {'Content-Type': 'application/json'},
           body: json.encode({'token': token}));
@@ -218,8 +237,10 @@ class SyncNotifier extends StateNotifier<SyncState> {
         }
         state = state.copyWith(productsStatus: SyncStatus.completed);
       } else {
-        final error = json.decode(response.body)['error'] ?? 'Error al sincronizar productos';
-        state = state.copyWith(productsStatus: SyncStatus.error, errorMessage: error);
+        final error = json.decode(response.body)['error'] ??
+            'Error al sincronizar productos';
+        state =
+            state.copyWith(productsStatus: SyncStatus.error, errorMessage: error);
       }
     } catch (e) {
       state = state.copyWith(
@@ -229,9 +250,13 @@ class SyncNotifier extends StateNotifier<SyncState> {
   }
 
   Future<void> _syncWarehouses(String token) async {
-    state = state.copyWith(warehousesStatus: SyncStatus.inProgress, errorMessage: null, clearErrorMessage: true);
+    state = state.copyWith(
+        warehousesStatus: SyncStatus.inProgress,
+        errorMessage: null,
+        clearErrorMessage: true);
     try {
-      final url = Uri.parse('https://rpsinventory.com/public/api/sync_get_warehouses');
+      final url =
+      Uri.parse('https://rpsinventory.com/public/api/sync_get_warehouses');
       final response = await http.post(url,
           headers: {'Content-Type': 'application/json'},
           body: json.encode({'token': token}));
@@ -243,8 +268,10 @@ class SyncNotifier extends StateNotifier<SyncState> {
         }
         state = state.copyWith(warehousesStatus: SyncStatus.completed);
       } else {
-        final error = json.decode(response.body)['error'] ?? 'Error al sincronizar bodegas';
-        state = state.copyWith(warehousesStatus: SyncStatus.error, errorMessage: error);
+        final error = json.decode(response.body)['error'] ??
+            'Error al sincronizar bodegas';
+        state = state.copyWith(
+            warehousesStatus: SyncStatus.error, errorMessage: error);
       }
     } catch (e) {
       state = state.copyWith(
@@ -255,9 +282,12 @@ class SyncNotifier extends StateNotifier<SyncState> {
 
   Future<void> _syncWarehousesProducts(String token) async {
     state = state.copyWith(
-        warehousesProductsStatus: SyncStatus.inProgress, errorMessage: null, clearErrorMessage: true);
+        warehousesProductsStatus: SyncStatus.inProgress,
+        errorMessage: null,
+        clearErrorMessage: true);
     try {
-      final url = Uri.parse('https://rpsinventory.com/public/api/sync_get_warehouses_products');
+      final url = Uri.parse(
+          'https://rpsinventory.com/public/api/sync_get_warehouses_products');
       final response = await http.post(url,
           headers: {'Content-Type': 'application/json'},
           body: json.encode({'token': token}));
@@ -270,7 +300,8 @@ class SyncNotifier extends StateNotifier<SyncState> {
         }
         state = state.copyWith(warehousesProductsStatus: SyncStatus.completed);
       } else {
-        final error = json.decode(response.body)['error'] ?? 'Error al sincronizar inventario de bodegas';
+        final error = json.decode(response.body)['error'] ??
+            'Error al sincronizar inventario de bodegas';
         state = state.copyWith(
             warehousesProductsStatus: SyncStatus.error, errorMessage: error);
       }
@@ -282,12 +313,17 @@ class SyncNotifier extends StateNotifier<SyncState> {
   }
 
   Future<void> _syncConduces(String token, String userId) async {
-    state = state.copyWith(conducesStatus: SyncStatus.inProgress, errorMessage: null, clearErrorMessage: true);
+    state = state.copyWith(
+        conducesStatus: SyncStatus.inProgress,
+        errorMessage: null,
+        clearErrorMessage: true);
     try {
-      final url = Uri.parse('${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_conduces');
+      final url = Uri.parse(
+          '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_conduces');
       final response = await http.post(url,
           headers: {'Content-Type': 'application/json'},
-          body: json.encode({'token': token, 'user_id': userId, 'conduces': []}));
+          body:
+          json.encode({'token': token, 'user_id': userId, 'conduces': []}));
 
       if (response.statusCode == 200) {
         final List<dynamic> conduceList = json.decode(response.body);
@@ -296,8 +332,10 @@ class SyncNotifier extends StateNotifier<SyncState> {
         }
         state = state.copyWith(conducesStatus: SyncStatus.completed);
       } else {
-        final error = json.decode(response.body)['error'] ?? 'Error al sincronizar conduces';
-        state = state.copyWith(conducesStatus: SyncStatus.error, errorMessage: error);
+        final error = json.decode(response.body)['error'] ??
+            'Error al sincronizar conduces';
+        state =
+            state.copyWith(conducesStatus: SyncStatus.error, errorMessage: error);
       }
     } catch (e) {
       state = state.copyWith(
@@ -307,9 +345,13 @@ class SyncNotifier extends StateNotifier<SyncState> {
   }
 
   Future<void> _syncDeductibles(String token) async {
-    state = state.copyWith(deductiblesStatus: SyncStatus.inProgress, errorMessage: null, clearErrorMessage: true);
+    state = state.copyWith(
+        deductiblesStatus: SyncStatus.inProgress,
+        errorMessage: null,
+        clearErrorMessage: true);
     try {
-      final url = Uri.parse('${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_deductibles');
+      final url = Uri.parse(
+          '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_deductibles');
       final response = await http.post(url,
           headers: {'Content-Type': 'application/json'},
           body: json.encode({'token': token}));
@@ -317,24 +359,32 @@ class SyncNotifier extends StateNotifier<SyncState> {
       if (response.statusCode == 200) {
         final List<dynamic> deductibleList = json.decode(response.body);
         for (var deductibleJson in deductibleList) {
-          await dbHelper.addOrUpdateDeductible(Deductible.fromMap(deductibleJson));
+          await dbHelper
+              .addOrUpdateDeductible(Deductible.fromMap(deductibleJson));
         }
         state = state.copyWith(deductiblesStatus: SyncStatus.completed);
       } else {
-        final error = json.decode(response.body)['error'] ?? 'Error al sincronizar deducibles';
-        state = state.copyWith(deductiblesStatus: SyncStatus.error, errorMessage: error);
+        final error = json.decode(response.body)['error'] ??
+            'Error al sincronizar deducibles';
+        state = state.copyWith(
+            deductiblesStatus: SyncStatus.error, errorMessage: error);
       }
     } catch (e) {
       state = state.copyWith(
           deductiblesStatus: SyncStatus.error,
-          errorMessage: "Error de red al sincronizar deducibles: ${e.toString()}");
+          errorMessage:
+          "Error de red al sincronizar deducibles: ${e.toString()}");
     }
   }
 
   Future<void> _syncWarehousesAlmacen(String token) async {
-    state = state.copyWith(warehousesStatus: SyncStatus.inProgress, errorMessage: null, clearErrorMessage: true);
+    state = state.copyWith(
+        warehousesStatus: SyncStatus.inProgress,
+        errorMessage: null,
+        clearErrorMessage: true);
     try {
-      final url = Uri.parse('${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_warehouses_almacen');
+      final url = Uri.parse(
+          '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_warehouses_almacen');
       final response = await http.post(url,
           headers: {'Content-Type': 'application/json'},
           body: json.encode({'token': token}));
@@ -346,8 +396,10 @@ class SyncNotifier extends StateNotifier<SyncState> {
         }
         state = state.copyWith(warehousesStatus: SyncStatus.completed);
       } else {
-        final error = json.decode(response.body)['error'] ?? 'Error al sincronizar almacenes';
-        state = state.copyWith(warehousesStatus: SyncStatus.error, errorMessage: error);
+        final error = json.decode(response.body)['error'] ??
+            'Error al sincronizar almacenes';
+        state = state.copyWith(
+            warehousesStatus: SyncStatus.error, errorMessage: error);
       }
     } catch (e) {
       state = state.copyWith(
@@ -358,9 +410,12 @@ class SyncNotifier extends StateNotifier<SyncState> {
 
   Future<void> _syncWarehousesProductsAlmacen(String token) async {
     state = state.copyWith(
-        warehousesProductsStatus: SyncStatus.inProgress, errorMessage: null, clearErrorMessage: true);
+        warehousesProductsStatus: SyncStatus.inProgress,
+        errorMessage: null,
+        clearErrorMessage: true);
     try {
-      final url = Uri.parse('${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_warehouses_products_almacen');
+      final url = Uri.parse(
+          '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_warehouses_products_almacen');
       final response = await http.post(url,
           headers: {'Content-Type': 'application/json'},
           body: json.encode({'token': token}));
@@ -373,7 +428,8 @@ class SyncNotifier extends StateNotifier<SyncState> {
         }
         state = state.copyWith(warehousesProductsStatus: SyncStatus.completed);
       } else {
-        final error = json.decode(response.body)['error'] ?? 'Error al sincronizar productos de almacén';
+        final error = json.decode(response.body)['error'] ??
+            'Error al sincronizar productos de almacén';
         state = state.copyWith(
             warehousesProductsStatus: SyncStatus.error, errorMessage: error);
       }
@@ -385,9 +441,13 @@ class SyncNotifier extends StateNotifier<SyncState> {
   }
 
   Future<void> _syncProductsAlmacen(String token) async {
-    state = state.copyWith(productsStatus: SyncStatus.inProgress, errorMessage: null, clearErrorMessage: true);
+    state = state.copyWith(
+        productsStatus: SyncStatus.inProgress,
+        errorMessage: null,
+        clearErrorMessage: true);
     try {
-      final url = Uri.parse('${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_products_almacen');
+      final url = Uri.parse(
+          '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_products_almacen');
       final response = await http.post(url,
           headers: {'Content-Type': 'application/json'},
           body: json.encode({'token': token}));
@@ -399,8 +459,10 @@ class SyncNotifier extends StateNotifier<SyncState> {
         }
         state = state.copyWith(productsStatus: SyncStatus.completed);
       } else {
-        final error = json.decode(response.body)['error'] ?? 'Error al sincronizar productos';
-        state = state.copyWith(productsStatus: SyncStatus.error, errorMessage: error);
+        final error = json.decode(response.body)['error'] ??
+            'Error al sincronizar productos';
+        state =
+            state.copyWith(productsStatus: SyncStatus.error, errorMessage: error);
       }
     } catch (e) {
       state = state.copyWith(
@@ -410,9 +472,13 @@ class SyncNotifier extends StateNotifier<SyncState> {
   }
 
   Future<void> _syncMovementsAlmacen(String token) async {
-    state = state.copyWith(movementsStatus: SyncStatus.inProgress, errorMessage: null, clearErrorMessage: true);
+    state = state.copyWith(
+        movementsStatus: SyncStatus.inProgress,
+        errorMessage: null,
+        clearErrorMessage: true);
     try {
-      final url = Uri.parse('${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_warehouses_products_movements_almacen');
+      final url = Uri.parse(
+          '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_warehouses_products_movements_almacen');
       final response = await http.post(url,
           headers: {'Content-Type': 'application/json'},
           body: json.encode({'token': token}));
@@ -421,16 +487,55 @@ class SyncNotifier extends StateNotifier<SyncState> {
         final List<dynamic> movementList = json.decode(response.body);
         for (var movementJson in movementList) {
           final db = await dbHelper.database;
-          await db.insert('movements', Movement.fromJson(movementJson).toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+          await db.insert('movements', Movement.fromJson(movementJson).toMap(),
+              conflictAlgorithm: ConflictAlgorithm.replace);
         }
         state = state.copyWith(movementsStatus: SyncStatus.completed);
       } else {
-        final error = json.decode(response.body)['error'] ?? 'Error al sincronizar movimientos';
-        state = state.copyWith(movementsStatus: SyncStatus.error, errorMessage: error);
+        final error = json.decode(response.body)['error'] ??
+            'Error al sincronizar movimientos';
+        state = state.copyWith(
+            movementsStatus: SyncStatus.error, errorMessage: error);
       }
     } catch (e) {
       state = state.copyWith(
           movementsStatus: SyncStatus.error,
+          errorMessage: "Error de red: ${e.toString()}");
+    }
+  }
+
+  Future<void> _syncInventory(String token) async {
+    state = state.copyWith(
+        inventoryProductsCountsStatus: SyncStatus.inProgress,
+        errorMessage: null,
+        clearErrorMessage: true);
+    try {
+      final url = Uri.parse(
+          '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_inventory');
+      final response = await http.post(url,
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'token': token}));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> list = json.decode(response.body);
+        final db = await dbHelper.database;
+        for (var itemJson in list) {
+          await db.insert('inventory_products_counts',
+              InventoryProductsCount.fromJson(itemJson).toMap(),
+              conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+        state =
+            state.copyWith(inventoryProductsCountsStatus: SyncStatus.completed);
+      } else {
+        final error = json.decode(response.body)['error'] ??
+            'Error al sincronizar inventario';
+        state = state.copyWith(
+            inventoryProductsCountsStatus: SyncStatus.error,
+            errorMessage: error);
+      }
+    } catch (e) {
+      state = state.copyWith(
+          inventoryProductsCountsStatus: SyncStatus.error,
           errorMessage: "Error de red: ${e.toString()}");
     }
   }
