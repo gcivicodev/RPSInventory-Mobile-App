@@ -742,9 +742,22 @@ class DBHelper {
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
-  Future<List<Warehouse>> getWarehouses() async {
+  Future<List<Warehouse>> getWarehouses({String? type}) async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query('warehouses');
+
+    String? where;
+    List<Object?>? whereArgs;
+
+    if (type != null) {
+      where = 'type = ?';
+      whereArgs = [type];
+    }
+
+    final List<Map<String, dynamic>> maps = await db.query(
+      'warehouses',
+      where: where,
+      whereArgs: whereArgs,
+    );
 
     if (maps.isNotEmpty) {
       return maps.map((map) => Warehouse.fromJson(map)).toList();

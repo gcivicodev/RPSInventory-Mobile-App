@@ -178,7 +178,7 @@ class _AddMovementViewState extends ConsumerState<AddMovementView> {
   @override
   Widget build(BuildContext context) {
     const primaryColor = Color(0xff0088CC);
-    final warehousesAsyncValue = ref.watch(warehousesProvider);
+    final warehousesAsyncValue = ref.watch(movementWarehousesProvider);
     final productsAsyncValue = ref.watch(allProductsProvider);
 
     return Scaffold(
