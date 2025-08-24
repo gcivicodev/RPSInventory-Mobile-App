@@ -21,10 +21,12 @@ class ViewMovementsProviders extends ConsumerStatefulWidget {
   final String? successMessage;
 
   @override
-  ConsumerState<ViewMovementsProviders> createState() => _ViewMovementsProvidersState();
+  ConsumerState<ViewMovementsProviders> createState() =>
+      _ViewMovementsProvidersState();
 }
 
-class _ViewMovementsProvidersState extends ConsumerState<ViewMovementsProviders> {
+class _ViewMovementsProvidersState
+    extends ConsumerState<ViewMovementsProviders> {
   final _searchController = TextEditingController();
 
   @override
@@ -57,7 +59,7 @@ class _ViewMovementsProvidersState extends ConsumerState<ViewMovementsProviders>
 
   @override
   Widget build(BuildContext context) {
-    final movementsAsync = ref.watch(movementsProvider);
+    final movementsAsync = ref.watch(providerMovementsProvider);
     const primaryColor = Color(0xff0088CC);
 
     return Scaffold(
@@ -84,7 +86,7 @@ class _ViewMovementsProvidersState extends ConsumerState<ViewMovementsProviders>
             icon: const Icon(Icons.sync),
             onPressed: () async {
               await Navigator.pushNamed(context, ViewSyncAlmacen.path);
-              ref.invalidate(movementsProvider);
+              ref.invalidate(providerMovementsProvider);
             },
             tooltip: 'Sincronizar',
           ),

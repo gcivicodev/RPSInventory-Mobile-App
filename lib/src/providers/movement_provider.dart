@@ -70,3 +70,10 @@ final movementsProvider = FutureProvider<List<MovementDetail>>((ref) async {
   final searchTerm = ref.watch(movementSearchQueryProvider);
   return dbHelper.getMovements(searchTerm: searchTerm);
 });
+
+final providerMovementsProvider =
+FutureProvider<List<MovementDetail>>((ref) async {
+  final dbHelper = DBHelper.instance;
+  final searchTerm = ref.watch(movementSearchQueryProvider);
+  return dbHelper.getProviderMovements(searchTerm: searchTerm);
+});
