@@ -49,9 +49,13 @@ class _ViewSyncAlmacenState extends ConsumerState<ViewSyncAlmacen> {
       }
     });
 
+    final appBarTitle = syncState.isUploading
+        ? 'Subiendo Datos de Almacén'
+        : 'Recibiendo Datos de Almacén';
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sincronizando Datos de Almacén'),
+        title: Text(appBarTitle),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
@@ -67,7 +71,9 @@ class _ViewSyncAlmacenState extends ConsumerState<ViewSyncAlmacen> {
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
-          child: _buildDownloadingView(syncState),
+          child: syncState.isUploading
+              ? _buildUploadingView(syncState)
+              : _buildDownloadingView(syncState),
         ),
       ),
       bottomNavigationBar: syncState.isSyncComplete
@@ -87,6 +93,34 @@ class _ViewSyncAlmacenState extends ConsumerState<ViewSyncAlmacen> {
         ),
       )
           : null,
+    );
+  }
+
+  Widget _buildUploadingView(SyncState syncState) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text(
+          'Preparando tus datos locales para enviarlos a la nube. Por favor, espere.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 16, color: Colors.black54),
+        ),
+        const SizedBox(height: 40),
+        _buildSyncItem(
+          label: 'Actualizando datos en la nube',
+          status: syncState.uploadStatus,
+        ),
+        if (syncState.errorMessage != null &&
+            syncState.uploadStatus == SyncStatus.error)
+          Padding(
+            padding: const EdgeInsets.only(top: 20.0),
+            child: Text(
+              'Error: ${syncState.errorMessage}',
+              style: const TextStyle(color: Colors.red),
+              textAlign: TextAlign.center,
+            ),
+          ),
+      ],
     );
   }
 

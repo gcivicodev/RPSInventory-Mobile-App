@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rpsinventory/src/models/m_movement_detail.dart';
 import 'package:rpsinventory/src/providers/auth_provider.dart';
+import 'package:rpsinventory/src/providers/conduces_provider.dart';
 import 'package:rpsinventory/src/providers/movement_provider.dart';
 import 'package:rpsinventory/src/views/view_add_movement.dart';
 import 'package:rpsinventory/src/views/view_inventory.dart';
 import 'package:rpsinventory/src/views/view_login.dart';
+import 'package:rpsinventory/src/views/view_sync_almacen.dart';
+import 'package:rpsinventory/src/views/view_sync_carrero.dart';
 
 class ViewMovements extends ConsumerStatefulWidget {
   const ViewMovements(
@@ -73,6 +76,14 @@ class _ViewMovementsState extends ConsumerState<ViewMovements> {
                   context, ViewLogin.path, (route) => false);
             },
             tooltip: 'Cerrar sesión',
+          ),
+          IconButton(
+            icon: const Icon(Icons.sync),
+            onPressed: () async {
+              await Navigator.pushNamed(context, ViewSyncAlmacen.path);
+              ref.invalidate(movementsProvider);
+            },
+            tooltip: 'Sincronizar',
           ),
           TextButton.icon(
             onPressed: () {

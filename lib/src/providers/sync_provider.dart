@@ -81,7 +81,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
 
   Future<void> startSync(String token, String userId) async {
     state = SyncState();
-    await _uploadAllData(token);
+    await _uploadCarreroData(token);
     if (state.uploadStatus == SyncStatus.completed) {
       state = state.copyWith(isUploading: false);
       await _startDownload(token, userId);
@@ -89,25 +89,30 @@ class SyncNotifier extends StateNotifier<SyncState> {
   }
 
   Future<void> startSyncAlmacen(String token, String userId) async {
-    state = SyncState(isUploading: false);
-    await _clearAlmacenTables();
-    await _syncWarehousesAlmacen(token);
-    if (state.warehousesStatus != SyncStatus.completed) return;
-    await _syncWarehousesProductsAlmacen(token);
-    if (state.warehousesProductsStatus != SyncStatus.completed) return;
-    await _syncProductsAlmacen(token);
-    if (state.productsStatus != SyncStatus.completed) return;
-    await _syncMovementsAlmacen(token);
-    if (state.movementsStatus != SyncStatus.completed) return;
-    await _syncInventory(token);
-    if (state.inventoryProductsCountsStatus != SyncStatus.completed) return;
+    state = SyncState();
+    await _uploadAlmacenData(token);
 
-    if (state.warehousesStatus == SyncStatus.completed &&
-        state.warehousesProductsStatus == SyncStatus.completed &&
-        state.productsStatus == SyncStatus.completed &&
-        state.movementsStatus == SyncStatus.completed &&
-        state.inventoryProductsCountsStatus == SyncStatus.completed) {
-      state = state.copyWith(isSyncComplete: true);
+    if (state.uploadStatus == SyncStatus.completed) {
+      state = state.copyWith(isUploading: false);
+      await _clearAlmacenTables();
+      await _syncWarehousesAlmacen(token);
+      if (state.warehousesStatus != SyncStatus.completed) return;
+      await _syncWarehousesProductsAlmacen(token);
+      if (state.warehousesProductsStatus != SyncStatus.completed) return;
+      await _syncProductsAlmacen(token);
+      if (state.productsStatus != SyncStatus.completed) return;
+      await _syncMovementsAlmacen(token);
+      if (state.movementsStatus != SyncStatus.completed) return;
+      await _syncInventory(token);
+      if (state.inventoryProductsCountsStatus != SyncStatus.completed) return;
+
+      if (state.warehousesStatus == SyncStatus.completed &&
+          state.warehousesProductsStatus == SyncStatus.completed &&
+          state.productsStatus == SyncStatus.completed &&
+          state.movementsStatus == SyncStatus.completed &&
+          state.inventoryProductsCountsStatus == SyncStatus.completed) {
+        state = state.copyWith(isSyncComplete: true);
+      }
     }
   }
 
@@ -120,7 +125,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
     await db.delete('inventory_products_counts');
   }
 
-  Future<void> _uploadAllData(String token) async {
+  Future<void> _uploadCarreroData(String token) async {
     state = state.copyWith(
         uploadStatus: SyncStatus.inProgress,
         errorMessage: null,
@@ -161,6 +166,41 @@ class SyncNotifier extends StateNotifier<SyncState> {
           endpoint: 'sync_update_conduces_notes_carrero',
           token: token,
           body: {'token': token, 'conduces_notes': notesToSync},
+        );
+      }
+
+      state = state.copyWith(uploadStatus: SyncStatus.completed);
+    } catch (e) {
+      state = state.copyWith(
+        uploadStatus: SyncStatus.error,
+        errorMessage: "Error en la subida: ${e.toString()}",
+      );
+    }
+  }
+
+  Future<void> _uploadAlmacenData(String token) async {
+    state = state.copyWith(
+        uploadStatus: SyncStatus.inProgress,
+        errorMessage: null,
+        clearErrorMessage: true);
+    try {
+      final movementsToSync = await dbHelper.getMovementsForSync();
+      final inventoryToSync =
+      await dbHelper.getInventoryProductsCountsForSync();
+
+      if (movementsToSync.isNotEmpty) {
+        await _postData(
+          endpoint: 'sync_update_movements_almacen',
+          token: token,
+          body: {'token': token, 'movements': movementsToSync},
+        );
+      }
+
+      if (inventoryToSync.isNotEmpty) {
+        await _postData(
+          endpoint: 'sync_update_inventory_almacen',
+          token: token,
+          body: {'token': token, 'inventorys': inventoryToSync},
         );
       }
 

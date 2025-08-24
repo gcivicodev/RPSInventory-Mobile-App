@@ -381,7 +381,7 @@ class DBHelper {
         });
       }
 
-      await txn.insert('movements', {
+      final movementData = {
         'created_at': now,
         'updated_at': now,
         'warehouse_origin_id': originWarehouseId,
@@ -394,7 +394,16 @@ class DBHelper {
         'warehouse_destination_product_quantity_after_movement': destAfter,
         'user_id': userId,
         'username': username,
-      });
+      };
+
+      final movementId = await txn.insert('movements', movementData);
+
+      await txn.update(
+        'movements',
+        {'local_id': movementId},
+        where: 'id = ?',
+        whereArgs: [movementId],
+      );
     });
   }
 
@@ -464,6 +473,16 @@ class DBHelper {
   Future<List<Map<String, dynamic>>> getConduceNotesForSync() async {
     final db = await database;
     return await db.query('conduce_notes');
+  }
+
+  Future<List<Map<String, dynamic>>> getMovementsForSync() async {
+    final db = await database;
+    return await db.query('movements');
+  }
+
+  Future<List<Map<String, dynamic>>> getInventoryProductsCountsForSync() async {
+    final db = await database;
+    return await db.query('inventory_products_counts');
   }
 
   Future<void> addOrUpdateDeductible(Deductible deductible) async {
@@ -849,10 +868,16 @@ class DBHelper {
   Future<void> addInventoryProductCount(
       InventoryProductsCount inventoryCount) async {
     final db = await database;
-    await db.insert(
+    final id = await db.insert(
       'inventory_products_counts',
       inventoryCount.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    await db.update(
+      'inventory_products_counts',
+      {'local_id': id},
+      where: 'id = ?',
+      whereArgs: [id],
     );
   }
 

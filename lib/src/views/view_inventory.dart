@@ -3,10 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:rpsinventory/src/models/m_inventory_products_counts.dart';
 import 'package:rpsinventory/src/providers/auth_provider.dart';
+import 'package:rpsinventory/src/providers/conduces_provider.dart';
 import 'package:rpsinventory/src/providers/inventory_products_counts_provider.dart';
 import 'package:rpsinventory/src/views/add_inventory.dart';
 import 'package:rpsinventory/src/views/view_login.dart';
 import 'package:rpsinventory/src/views/view_movements.dart';
+import 'package:rpsinventory/src/views/view_sync_almacen.dart';
+import 'package:rpsinventory/src/views/view_sync_carrero.dart';
 
 class ViewInventory extends ConsumerWidget {
   const ViewInventory({super.key});
@@ -36,6 +39,14 @@ class ViewInventory extends ConsumerWidget {
                   context, ViewLogin.path, (route) => false);
             },
             tooltip: 'Cerrar sesión',
+          ),
+          IconButton(
+            icon: const Icon(Icons.sync),
+            onPressed: () async {
+              await Navigator.pushNamed(context, ViewSyncAlmacen.path);
+              ref.invalidate(inventoryProductsCountsProvider);
+            },
+            tooltip: 'Sincronizar',
           ),
           TextButton.icon(
             onPressed: () {

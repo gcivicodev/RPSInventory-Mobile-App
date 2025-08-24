@@ -74,7 +74,7 @@ class Movement {
     warehouseDestinationProductQuantityBeforeMovement: _parseDouble(json["warehouse_destination_product_quantity_before_movement"]),
     warehouseDestinationProductQuantityAfterMovement: _parseDouble(json["warehouse_destination_product_quantity_after_movement"]),
     username: json["username"],
-    localId: _parseInt(json["local_id"] ?? json["id"]),
+    localId: _parseInt(json["local_id"]),
   );
 
   Map<String, dynamic> toMap() => {
