@@ -234,13 +234,15 @@ class _ViewMovementsState extends ConsumerState<ViewMovements> {
                     'Origen',
                     movement.warehouseOriginName,
                     movement.warehouseOriginProductQuantityBeforeMovement,
-                    movement.warehouseOriginProductQuantityAfterMovement),
+                    movement.warehouseOriginProductQuantityAfterMovement,
+                    warehouseType: movement.warehouseOriginType),
                 _buildMovementInfoColumn(
                     context,
                     'Destino',
                     movement.warehouseDestinationName,
                     movement.warehouseDestinationProductQuantityBeforeMovement,
-                    movement.warehouseDestinationProductQuantityAfterMovement),
+                    movement.warehouseDestinationProductQuantityAfterMovement,
+                    warehouseType: movement.warehouseDestinationType),
               ],
             ),
           ],
@@ -271,7 +273,15 @@ class _ViewMovementsState extends ConsumerState<ViewMovements> {
   }
 
   Widget _buildMovementInfoColumn(BuildContext context, String title,
-      String? warehouseName, double? before, double? after) {
+      String? warehouseName, double? before, double? after,
+      {String? warehouseType}) {
+    String typeString = '';
+    if (warehouseType == 'warehouse') {
+      typeString = ' (almacen)';
+    } else if (warehouseType == 'provider') {
+      typeString = ' (proveedor)';
+    }
+
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -282,7 +292,7 @@ class _ViewMovementsState extends ConsumerState<ViewMovements> {
                   .titleMedium
                   ?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Text('Almacen: ${warehouseName ?? 'N/A'}',
+          Text('Almacen: ${warehouseName ?? 'N/A'}$typeString',
               style: const TextStyle(fontWeight: FontWeight.w500)),
           const SizedBox(height: 4),
           Text('Antes: ${before?.toStringAsFixed(2) ?? "0.00"}'),

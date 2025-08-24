@@ -488,22 +488,25 @@ class DBHelper {
         m.product_quantity_moved,
         m.username,
         wo.name as warehouse_origin_name,
+        wo.type as warehouse_origin_type,
         m.warehouse_origin_product_quantity_before_movement,
         m.warehouse_origin_product_quantity_after_movement,
         wd.name as warehouse_destination_name,
+        wd.type as warehouse_destination_type,
         m.warehouse_destination_product_quantity_before_movement,
         m.warehouse_destination_product_quantity_after_movement
       FROM movements m
       LEFT JOIN products p ON m.product_id = p.id
       LEFT JOIN warehouses wo ON m.warehouse_origin_id = wo.id
       LEFT JOIN warehouses wd ON m.warehouse_destination_id = wd.id
+      WHERE wo.type = 'warehouse'
     ''';
 
     List<dynamic> args = [];
     if (searchTerm != null && searchTerm.isNotEmpty) {
       final searchPattern = '%$searchTerm%';
       query += '''
-        WHERE p.name LIKE ?
+        AND (p.name LIKE ?
         OR wo.name LIKE ?
         OR wd.name LIKE ?
         OR p.sku LIKE ?
@@ -511,7 +514,7 @@ class DBHelper {
         OR p.size LIKE ?
         OR p.color LIKE ?
         OR p.model LIKE ?
-        OR m.username LIKE ?
+        OR m.username LIKE ?)
       ''';
       args = List.filled(9, searchPattern);
     }
@@ -527,7 +530,8 @@ class DBHelper {
     }
   }
 
-  Future<List<MovementDetail>> getProviderMovements({String? searchTerm}) async {
+  Future<List<MovementDetail>> getProviderMovements(
+      {String? searchTerm}) async {
     final db = await database;
     String query = '''
       SELECT
@@ -541,9 +545,11 @@ class DBHelper {
         m.product_quantity_moved,
         m.username,
         wo.name as warehouse_origin_name,
+        wo.type as warehouse_origin_type,
         m.warehouse_origin_product_quantity_before_movement,
         m.warehouse_origin_product_quantity_after_movement,
         wd.name as warehouse_destination_name,
+        wd.type as warehouse_destination_type,
         m.warehouse_destination_product_quantity_before_movement,
         m.warehouse_destination_product_quantity_after_movement
       FROM movements m
