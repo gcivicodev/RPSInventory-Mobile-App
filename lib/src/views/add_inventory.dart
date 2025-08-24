@@ -7,6 +7,7 @@ import 'package:rpsinventory/src/models/m_warehouse.dart';
 import 'package:rpsinventory/src/providers/inventory_products_counts_provider.dart';
 import 'package:rpsinventory/src/providers/products_provider.dart';
 import 'package:rpsinventory/src/providers/warehouses_provider.dart';
+import 'package:rpsinventory/src/views/view_scanner.dart';
 
 class AddInventory extends ConsumerStatefulWidget {
   final InventoryProductsCount? inventoryCount;
@@ -48,6 +49,88 @@ class _AddInventoryState extends ConsumerState<AddInventory> {
     _countedQuantityController.dispose();
     _previousQuantityController.dispose();
     super.dispose();
+  }
+
+  Future<void> _scanBarcode() async {
+    if (_selectedWarehouse == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, seleccione un almacén primero.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final scannedBarcode = await Navigator.push<String?>(
+      context,
+      MaterialPageRoute(builder: (context) => const ViewScanner()),
+    );
+
+    if (scannedBarcode == null || scannedBarcode.isEmpty || !mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final productFromScan = await DBHelper.instance
+          .getProductByBarcodeNumberAndWarehouse(
+          scannedBarcode, _selectedWarehouse!.id);
+
+      if (!mounted) return;
+
+      if (productFromScan != null) {
+        ref.invalidate(productsByWarehouseProvider(_selectedWarehouse!.id));
+        final productsInWarehouse = await ref
+            .read(productsByWarehouseProvider(_selectedWarehouse!.id).future);
+
+        Product? productInList;
+        try {
+          productInList =
+              productsInWarehouse.firstWhere((p) => p.id == productFromScan.id);
+        } catch (e) {
+          productInList = null;
+        }
+
+        if (productInList != null) {
+          setState(() {
+            _selectedProduct = productInList;
+            _previousQuantityController.text =
+                productInList?.currentQuantity?.toString() ?? '0';
+          });
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'El producto no pertenece a este almacén o no tiene inventario.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Producto con barcode "$scannedBarcode" no encontrado.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al buscar producto: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    }
   }
 
   Future<void> _saveInventory() async {
@@ -110,6 +193,13 @@ class _AddInventoryState extends ConsumerState<AddInventory> {
         ),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
+        actions: [
+          if (!isEditing)
+            IconButton(
+              icon: const Icon(Icons.qr_code_scanner),
+              onPressed: _scanBarcode,
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -164,10 +254,14 @@ class _AddInventoryState extends ConsumerState<AddInventory> {
                             border: OutlineInputBorder(),
                           ),
                           value: _selectedProduct,
+                          isExpanded: true,
                           items: products
                               .map((p) => DropdownMenuItem(
                             value: p,
-                            child: Text('${p.name} - ${p.sku} - ${p.color} - ${p.model} - ${p.size}'),
+                            child: Text(
+                              '${p.name} - ${p.sku} - ${p.color} - ${p.model} - ${p.size}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ))
                               .toList(),
                           onChanged: isEditing
