@@ -8,22 +8,23 @@ import 'package:rpsinventory/src/views/view_add_movement.dart';
 import 'package:rpsinventory/src/views/view_add_movement_provider.dart';
 import 'package:rpsinventory/src/views/view_inventory.dart';
 import 'package:rpsinventory/src/views/view_login.dart';
+import 'package:rpsinventory/src/views/view_movements.dart';
 import 'package:rpsinventory/src/views/view_movements_providers.dart';
 import 'package:rpsinventory/src/views/view_sync_almacen.dart';
 import 'package:rpsinventory/src/views/view_sync_carrero.dart';
 
-class ViewMovements extends ConsumerStatefulWidget {
-  const ViewMovements(
+class ViewMovementsProviders extends ConsumerStatefulWidget {
+  const ViewMovementsProviders(
       {super.key, this.showSuccessSnackbar = false, this.successMessage});
   static String path = '/movements';
   final bool showSuccessSnackbar;
   final String? successMessage;
 
   @override
-  ConsumerState<ViewMovements> createState() => _ViewMovementsState();
+  ConsumerState<ViewMovementsProviders> createState() => _ViewMovementsProvidersState();
 }
 
-class _ViewMovementsState extends ConsumerState<ViewMovements> {
+class _ViewMovementsProvidersState extends ConsumerState<ViewMovementsProviders> {
   final _searchController = TextEditingController();
 
   @override
@@ -62,7 +63,7 @@ class _ViewMovementsState extends ConsumerState<ViewMovements> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Movimientos de Almacén',
+          'Movimientos de Proveedores',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: primaryColor,
@@ -91,7 +92,7 @@ class _ViewMovementsState extends ConsumerState<ViewMovements> {
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => const AddMovementView(),
+                  builder: (context) => const AddMovementProviderView(),
                 ),
               );
             },
@@ -153,14 +154,14 @@ class _ViewMovementsState extends ConsumerState<ViewMovements> {
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
+        currentIndex: 1,
         onTap: (index) {
-          if (index == 1) {
+          if (index == 0) {
             Navigator.pushReplacement(
               context,
               PageRouteBuilder(
                 pageBuilder: (context, animation1, animation2) =>
-                const ViewMovementsProviders(),
+                const ViewMovements(),
                 transitionDuration: Duration.zero,
                 reverseTransitionDuration: Duration.zero,
               ),

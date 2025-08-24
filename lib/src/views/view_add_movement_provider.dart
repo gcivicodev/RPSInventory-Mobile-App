@@ -8,6 +8,7 @@ import 'package:rpsinventory/src/providers/products_provider.dart';
 import 'package:rpsinventory/src/providers/user_provider.dart';
 import 'package:rpsinventory/src/providers/warehouses_provider.dart';
 import 'package:rpsinventory/src/views/view_movements.dart';
+import 'package:rpsinventory/src/views/view_movements_providers.dart';
 import 'package:rpsinventory/src/views/view_scanner.dart';
 
 class AddMovementProviderView extends ConsumerStatefulWidget {
@@ -138,7 +139,7 @@ class _AddMovementProviderViewState extends ConsumerState<AddMovementProviderVie
         final userId =
         currentUser?.id != null ? int.tryParse(currentUser!.id!) : null;
 
-        await ref.read(movementProvider.notifier).addMovement(
+        await ref.read(movementProvider.notifier).addMovementFromProvider(
           originWarehouseId: _selectedOriginWarehouse!.id,
           destinationWarehouseId: _selectedDestinationWarehouse!.id,
           productId: _selectedProduct!.id,
@@ -153,7 +154,7 @@ class _AddMovementProviderViewState extends ConsumerState<AddMovementProviderVie
           Navigator.of(context).pop();
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
-              builder: (context) => const ViewMovements(
+              builder: (context) => const ViewMovementsProviders(
                 showSuccessSnackbar: true,
                 successMessage: 'Movimiento añadido con éxito.',
               ),
@@ -178,7 +179,8 @@ class _AddMovementProviderViewState extends ConsumerState<AddMovementProviderVie
   @override
   Widget build(BuildContext context) {
     const primaryColor = Color(0xff0088CC);
-    final warehousesAsyncValue = ref.watch(movementWarehousesProvider);
+    final originWarehousesAsyncValue = ref.watch(providerWarehousesProvider);
+    final destinationWarehousesAsyncValue = ref.watch(movementWarehousesProvider);
     final productsAsyncValue = ref.watch(allProductsProvider);
 
     return Scaffold(
@@ -201,7 +203,7 @@ class _AddMovementProviderViewState extends ConsumerState<AddMovementProviderVie
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              warehousesAsyncValue.when(
+              originWarehousesAsyncValue.when(
                 loading: () => const CircularProgressIndicator(),
                 error: (err, stack) => Text('Error: $err'),
                 data: (warehouses) {
@@ -285,7 +287,7 @@ class _AddMovementProviderViewState extends ConsumerState<AddMovementProviderVie
                 },
               ),
               const SizedBox(height: 16),
-              warehousesAsyncValue.when(
+              destinationWarehousesAsyncValue.when(
                 loading: () => const CircularProgressIndicator(),
                 error: (err, stack) => Text('Error: $err'),
                 data: (warehouses) {

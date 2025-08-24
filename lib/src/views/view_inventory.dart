@@ -8,6 +8,7 @@ import 'package:rpsinventory/src/providers/inventory_products_counts_provider.da
 import 'package:rpsinventory/src/views/add_inventory.dart';
 import 'package:rpsinventory/src/views/view_login.dart';
 import 'package:rpsinventory/src/views/view_movements.dart';
+import 'package:rpsinventory/src/views/view_movements_providers.dart';
 import 'package:rpsinventory/src/views/view_sync_almacen.dart';
 import 'package:rpsinventory/src/views/view_sync_carrero.dart';
 
@@ -92,7 +93,7 @@ class ViewInventory extends ConsumerWidget {
         },
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 1,
+        currentIndex: 2,
         onTap: (index) {
           if (index == 0) {
             Navigator.pushReplacement(
@@ -104,12 +105,26 @@ class ViewInventory extends ConsumerWidget {
                 reverseTransitionDuration: Duration.zero,
               ),
             );
+          } else if (index == 1) {
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation1, animation2) =>
+                const ViewMovementsProviders(),
+                transitionDuration: Duration.zero,
+                reverseTransitionDuration: Duration.zero,
+              ),
+            );
           }
         },
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.swap_horiz),
             label: 'Movimientos',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.swap_horiz),
+            label: 'Proveedores',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.inventory),

@@ -5,6 +5,8 @@ import 'package:rpsinventory/src/views/view_conduces.dart';
 import 'package:rpsinventory/src/views/view_inventory.dart';
 import 'package:rpsinventory/src/views/view_login.dart';
 import 'package:rpsinventory/src/views/view_movements.dart';
+import 'package:rpsinventory/src/views/view_movements_providers.dart';
+import 'package:rpsinventory/src/views/view_movements_providers.dart';
 import 'package:rpsinventory/src/views/view_sync_almacen.dart';
 import 'package:rpsinventory/src/views/view_sync_carrero.dart';
 
@@ -40,6 +42,7 @@ class MyApp extends StatelessWidget {
         ViewConduces.path: (context) => const ViewConduces(),
         ViewSyncAlmacen.path: (context) => const ViewSyncAlmacen(),
         ViewMovements.path: (context) => const ViewMovements(),
+        ViewMovementsProviders.path: (context) => const ViewMovementsProviders(),
         ViewInventory.path: (context) => const ViewInventory(),
       },
     );

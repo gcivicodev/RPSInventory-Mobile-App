@@ -30,6 +30,32 @@ class MovementNotifier extends StateNotifier<AsyncValue<void>> {
       rethrow;
     }
   }
+
+  Future<void> addMovementFromProvider({
+    required int originWarehouseId,
+    required int destinationWarehouseId,
+    required int productId,
+    required double quantity,
+    int? userId,
+    String? username,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      final dbHelper = DBHelper.instance;
+      await dbHelper.addMovementFromProvider(
+        originWarehouseId: originWarehouseId,
+        destinationWarehouseId: destinationWarehouseId,
+        productId: productId,
+        quantity: quantity,
+        userId: userId,
+        username: username,
+      );
+      state = const AsyncValue.data(null);
+    } catch (e) {
+      state = AsyncValue.error(e, StackTrace.current);
+      rethrow;
+    }
+  }
 }
 
 final movementProvider =

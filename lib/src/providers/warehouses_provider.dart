@@ -13,3 +13,8 @@ final movementWarehousesProvider = FutureProvider.autoDispose<List<Warehouse>>((
   final dbHelper = ref.watch(dbHelperProvider);
   return await dbHelper.getWarehouses(type: 'warehouse');
 });
+
+final providerWarehousesProvider = FutureProvider.autoDispose<List<Warehouse>>((ref) async {
+  final dbHelper = ref.watch(dbHelperProvider);
+  return await dbHelper.getWarehouses(type: 'provider');
+});

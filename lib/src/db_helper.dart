@@ -407,6 +407,73 @@ class DBHelper {
     });
   }
 
+  Future<void> addMovementFromProvider({
+    required int originWarehouseId,
+    required int destinationWarehouseId,
+    required int productId,
+    required double quantity,
+    int? userId,
+    String? username,
+  }) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      final now = DateTime.now().toIso8601String();
+
+      final destWp = await txn.query(
+        'warehouses_products',
+        where: 'warehouse_id = ? AND product_id = ?',
+        whereArgs: [destinationWarehouseId, productId],
+      );
+
+      double destBefore = 0.0;
+      if (destWp.isNotEmpty) {
+        destBefore = (destWp.first['current_quantity'] as num).toDouble();
+      }
+      final destAfter = destBefore + quantity;
+
+      if (destWp.isNotEmpty) {
+        await txn.update(
+          'warehouses_products',
+          {'current_quantity': destAfter, 'updated_at': now},
+          where: 'id = ?',
+          whereArgs: [destWp.first['id']],
+        );
+      } else {
+        await txn.insert('warehouses_products', {
+          'warehouse_id': destinationWarehouseId,
+          'product_id': productId,
+          'current_quantity': destAfter,
+          'created_at': now,
+          'updated_at': now,
+        });
+      }
+
+      final movementData = {
+        'created_at': now,
+        'updated_at': now,
+        'warehouse_origin_id': originWarehouseId,
+        'product_id': productId,
+        'warehouse_origin_product_quantity_before_movement': 0.0,
+        'product_quantity_moved': quantity,
+        'warehouse_origin_product_quantity_after_movement': 0.0,
+        'warehouse_destination_id': destinationWarehouseId,
+        'warehouse_destination_product_quantity_before_movement': destBefore,
+        'warehouse_destination_product_quantity_after_movement': destAfter,
+        'user_id': userId,
+        'username': username,
+      };
+
+      final movementId = await txn.insert('movements', movementData);
+
+      await txn.update(
+        'movements',
+        {'local_id': movementId},
+        where: 'id = ?',
+        whereArgs: [movementId],
+      );
+    });
+  }
+
   Future<List<MovementDetail>> getMovements({String? searchTerm}) async {
     final db = await database;
     String query = '''
