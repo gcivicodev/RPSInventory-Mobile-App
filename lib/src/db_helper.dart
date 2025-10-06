@@ -258,6 +258,14 @@ class DBHelper {
           username TEXT
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS last_sync(
+          id INTEGER PRIMARY KEY,
+          last_sync TEXT
+      )
+    ''');
+
   }
 
   Future<List<InventoryProductsCount>> getInventoryProductsCounts() async {
