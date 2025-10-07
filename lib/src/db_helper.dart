@@ -1048,24 +1048,24 @@ class DBHelper {
     );
   }
 
-  Future<void> updateLastSyncDate(DateTime dateTime) async {
+  Future<void> updateLastSyncDate(DateTime dateTime, {int syncId = 1}) async {
     final db = await database;
     final formattedDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(dateTime);
 
     await db.insert(
       'last_sync',
-      {'id': 1, 'last_sync': formattedDate},
+      {'id': syncId, 'last_sync': formattedDate},
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 
-  Future<String?> getLastSyncDate() async {
+  Future<String?> getLastSyncDate({int syncId = 1}) async {
     final db = await database;
     final result = await db.query(
       'last_sync',
       columns: ['last_sync'],
       where: 'id = ?',
-      whereArgs: [1],
+      whereArgs: [syncId],
       limit: 1,
     );
 

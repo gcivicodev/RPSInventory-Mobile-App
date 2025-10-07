@@ -88,22 +88,23 @@ class SyncNotifier extends StateNotifier<SyncState> {
     }
   }
 
-  Future<void> startSyncAlmacen(String token, String userId) async {
+  Future<void> startSyncAlmacen(String token, String userId,
+      {String? lastSync}) async {
     state = SyncState();
     await _uploadAlmacenData(token);
 
     if (state.uploadStatus == SyncStatus.completed) {
       state = state.copyWith(isUploading: false);
-      await _clearAlmacenTables();
-      await _syncWarehousesAlmacen(token);
+      final syncTimestamp = lastSync ?? '';
+      await _syncWarehousesAlmacen(token, syncTimestamp);
       if (state.warehousesStatus != SyncStatus.completed) return;
-      await _syncWarehousesProductsAlmacen(token);
+      await _syncWarehousesProductsAlmacen(token, syncTimestamp);
       if (state.warehousesProductsStatus != SyncStatus.completed) return;
-      await _syncProductsAlmacen(token);
+      await _syncProductsAlmacen(token, syncTimestamp);
       if (state.productsStatus != SyncStatus.completed) return;
-      await _syncMovementsAlmacen(token);
+      await _syncMovementsAlmacen(token, syncTimestamp);
       if (state.movementsStatus != SyncStatus.completed) return;
-      await _syncInventory(token);
+      await _syncInventory(token, syncTimestamp);
       if (state.inventoryProductsCountsStatus != SyncStatus.completed) return;
 
       if (state.warehousesStatus == SyncStatus.completed &&
@@ -114,15 +115,6 @@ class SyncNotifier extends StateNotifier<SyncState> {
         state = state.copyWith(isSyncComplete: true);
       }
     }
-  }
-
-  Future<void> _clearAlmacenTables() async {
-    final db = await dbHelper.database;
-    await db.delete('warehouses');
-    await db.delete('warehouses_products');
-    await db.delete('products');
-    await db.delete('movements');
-    await db.delete('inventory_products_counts');
   }
 
   Future<void> _uploadCarreroData(String token) async {
@@ -494,7 +486,8 @@ class SyncNotifier extends StateNotifier<SyncState> {
     return <dynamic>[];
   }
 
-  Future<void> _syncWarehousesAlmacen(String token) async {
+  Future<void> _syncWarehousesAlmacen(
+      String token, String lastSync) async {
     state = state.copyWith(
         warehousesStatus: SyncStatus.inProgress,
         errorMessage: null,
@@ -504,7 +497,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
           '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_warehouses_almacen');
       final response = await http.post(url,
           headers: {'Content-Type': 'application/json'},
-          body: json.encode({'token': token}));
+          body: json.encode({'token': token, 'last_sync': lastSync}));
 
       if (response.statusCode == 200) {
         final List<dynamic> list = json.decode(response.body);
@@ -525,7 +518,8 @@ class SyncNotifier extends StateNotifier<SyncState> {
     }
   }
 
-  Future<void> _syncWarehousesProductsAlmacen(String token) async {
+  Future<void> _syncWarehousesProductsAlmacen(
+      String token, String lastSync) async {
     state = state.copyWith(
         warehousesProductsStatus: SyncStatus.inProgress,
         errorMessage: null,
@@ -535,7 +529,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
           '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_warehouses_products_almacen');
       final response = await http.post(url,
           headers: {'Content-Type': 'application/json'},
-          body: json.encode({'token': token}));
+          body: json.encode({'token': token, 'last_sync': lastSync}));
 
       if (response.statusCode == 200) {
         final List<dynamic> list = json.decode(response.body);
@@ -557,7 +551,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
     }
   }
 
-  Future<void> _syncProductsAlmacen(String token) async {
+  Future<void> _syncProductsAlmacen(String token, String lastSync) async {
     state = state.copyWith(
         productsStatus: SyncStatus.inProgress,
         errorMessage: null,
@@ -567,7 +561,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
           '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_products_almacen');
       final response = await http.post(url,
           headers: {'Content-Type': 'application/json'},
-          body: json.encode({'token': token}));
+          body: json.encode({'token': token, 'last_sync': lastSync}));
 
       if (response.statusCode == 200) {
         final List<dynamic> productList = json.decode(response.body);
@@ -588,7 +582,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
     }
   }
 
-  Future<void> _syncMovementsAlmacen(String token) async {
+  Future<void> _syncMovementsAlmacen(String token, String lastSync) async {
     state = state.copyWith(
         movementsStatus: SyncStatus.inProgress,
         errorMessage: null,
@@ -598,7 +592,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
           '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_warehouses_products_movements_almacen');
       final response = await http.post(url,
           headers: {'Content-Type': 'application/json'},
-          body: json.encode({'token': token}));
+          body: json.encode({'token': token, 'last_sync': lastSync}));
 
       if (response.statusCode == 200) {
         final List<dynamic> movementList = json.decode(response.body);
@@ -621,7 +615,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
     }
   }
 
-  Future<void> _syncInventory(String token) async {
+  Future<void> _syncInventory(String token, String lastSync) async {
     state = state.copyWith(
         inventoryProductsCountsStatus: SyncStatus.inProgress,
         errorMessage: null,
@@ -631,7 +625,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
           '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_inventory');
       final response = await http.post(url,
           headers: {'Content-Type': 'application/json'},
-          body: json.encode({'token': token}));
+          body: json.encode({'token': token, 'last_sync': lastSync}));
 
       if (response.statusCode == 200) {
         final List<dynamic> list = json.decode(response.body);

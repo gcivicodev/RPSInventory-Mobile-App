@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:rpsinventory/src/db_helper.dart';
 import 'package:rpsinventory/src/models/m_user.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rpsinventory/src/providers/sync_provider.dart';
@@ -15,6 +16,8 @@ class ViewSyncAlmacen extends ConsumerStatefulWidget {
 }
 
 class _ViewSyncAlmacenState extends ConsumerState<ViewSyncAlmacen> {
+  bool _isCompletingSync = false;
+
   @override
   void initState() {
     super.initState();
@@ -31,10 +34,40 @@ class _ViewSyncAlmacenState extends ConsumerState<ViewSyncAlmacen> {
       final userId = userData.id;
 
       if (userId != null) {
+        final lastSync =
+            await DBHelper.instance.getLastSyncDate(syncId: 2);
         Future.microtask(() => ref
             .read(syncProvider.notifier)
-            .startSyncAlmacen(token, userId.toString()));
+            .startSyncAlmacen(token, userId.toString(), lastSync: lastSync));
       }
+    }
+  }
+
+  Future<void> _handleSyncCompletion() async {
+    if (_isCompletingSync) {
+      return;
+    }
+
+    _isCompletingSync = true;
+    try {
+      await DBHelper.instance.updateLastSyncDate(
+        DateTime.now(),
+        syncId: 2,
+      );
+      if (!mounted) {
+        _isCompletingSync = false;
+        return;
+      }
+      Navigator.of(context).pushReplacementNamed(ViewMovements.path);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo actualizar la ultima sincronizacion'),
+          ),
+        );
+      }
+      _isCompletingSync = false;
     }
   }
 
@@ -44,8 +77,8 @@ class _ViewSyncAlmacenState extends ConsumerState<ViewSyncAlmacen> {
     const primaryColor = Color(0xff0088CC);
 
     ref.listen<SyncState>(syncProvider, (previous, next) {
-      if (next.isSyncComplete) {
-        Navigator.of(context).pushReplacementNamed(ViewMovements.path);
+      if (next.isSyncComplete && previous?.isSyncComplete != true) {
+        _handleSyncCompletion();
       }
     });
 
@@ -81,8 +114,7 @@ class _ViewSyncAlmacenState extends ConsumerState<ViewSyncAlmacen> {
         padding: const EdgeInsets.all(16.0),
         child: ElevatedButton(
           onPressed: () {
-            Navigator.of(context)
-                .pushReplacementNamed(ViewMovements.path);
+            _handleSyncCompletion();
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: primaryColor,
