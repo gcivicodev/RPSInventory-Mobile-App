@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rpsinventory/src/models/m_user.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:rpsinventory/src/providers/last_sync_provider.dart';
 import 'package:rpsinventory/src/providers/sync_provider.dart';
 import 'package:rpsinventory/src/views/view_conduces.dart';
 
@@ -15,6 +16,8 @@ class ViewSyncCarrero extends ConsumerStatefulWidget {
 }
 
 class _ViewSyncCarreroState extends ConsumerState<ViewSyncCarrero> {
+  bool _isCompletingSync = false;
+
   @override
   void initState() {
     super.initState();
@@ -39,14 +42,41 @@ class _ViewSyncCarreroState extends ConsumerState<ViewSyncCarrero> {
     }
   }
 
+  Future<void> _handleSyncCompletion() async {
+    if (_isCompletingSync) {
+      return;
+    }
+
+    _isCompletingSync = true;
+    final updateLastSync = ref.read(lastSyncUpdaterProvider);
+
+    try {
+      await updateLastSync(DateTime.now());
+      if (!mounted) {
+        _isCompletingSync = false;
+        return;
+      }
+      Navigator.of(context).pushReplacementNamed(ViewConduces.path);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo actualizar la última sincronización'),
+          ),
+        );
+      }
+      _isCompletingSync = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final syncState = ref.watch(syncProvider);
     const primaryColor = Color(0xff0088CC);
 
     ref.listen<SyncState>(syncProvider, (previous, next) {
-      if (next.isSyncComplete) {
-        Navigator.of(context).pushReplacementNamed(ViewConduces.path);
+      if (next.isSyncComplete && previous?.isSyncComplete != true) {
+        _handleSyncCompletion();
       }
     });
 
@@ -81,10 +111,7 @@ class _ViewSyncCarreroState extends ConsumerState<ViewSyncCarrero> {
           ? Padding(
         padding: const EdgeInsets.all(16.0),
         child: ElevatedButton(
-          onPressed: () {
-            Navigator.of(context)
-                .pushReplacementNamed(ViewConduces.path);
-          },
+          onPressed: _handleSyncCompletion,
           style: ElevatedButton.styleFrom(
             backgroundColor: primaryColor,
             foregroundColor: Colors.white,

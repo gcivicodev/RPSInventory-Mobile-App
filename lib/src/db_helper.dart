@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:rpsinventory/src/models/m_conduce.dart';
@@ -1044,6 +1045,17 @@ class DBHelper {
       dataToUpdate,
       where: 'id = ?',
       whereArgs: [inventoryCount.id],
+    );
+  }
+
+  Future<void> updateLastSyncDate(DateTime dateTime) async {
+    final db = await database;
+    final formattedDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(dateTime);
+
+    await db.insert(
+      'last_sync',
+      {'id': 1, 'last_sync': formattedDate},
+      conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 }
