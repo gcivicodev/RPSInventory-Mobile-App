@@ -1058,4 +1058,25 @@ class DBHelper {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
+
+  Future<String?> getLastSyncDate() async {
+    final db = await database;
+    final result = await db.query(
+      'last_sync',
+      columns: ['last_sync'],
+      where: 'id = ?',
+      whereArgs: [1],
+      limit: 1,
+    );
+
+    if (result.isEmpty) {
+      return null;
+    }
+
+    final value = result.first['last_sync'];
+    if (value is String && value.isNotEmpty) {
+      return value;
+    }
+    return null;
+  }
 }

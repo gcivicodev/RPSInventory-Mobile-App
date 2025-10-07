@@ -266,12 +266,19 @@ class SyncNotifier extends StateNotifier<SyncState> {
     try {
       final url = Uri.parse(
           '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_products');
+      final lastSync = await dbHelper.getLastSyncDate();
       final response = await http.post(url,
           headers: {'Content-Type': 'application/json'},
-          body: json.encode({'token': token}));
+          body: json.encode({
+            'token': token,
+            'last_sync': lastSync ?? '',
+          }));
 
       if (response.statusCode == 200) {
-        final List<dynamic> productList = json.decode(response.body);
+        final productList = _parseResponseList(
+          response.body,
+          listKeys: const ['products', 'data'],
+        );
         for (var productJson in productList) {
           await dbHelper.addOrUpdateProduct(Product.fromJson(productJson));
         }
@@ -297,12 +304,19 @@ class SyncNotifier extends StateNotifier<SyncState> {
     try {
       final url =
       Uri.parse('https://rpsinventory.com/public/api/sync_get_warehouses');
+      final lastSync = await dbHelper.getLastSyncDate();
       final response = await http.post(url,
           headers: {'Content-Type': 'application/json'},
-          body: json.encode({'token': token}));
+          body: json.encode({
+            'token': token,
+            'last_sync': lastSync ?? '',
+          }));
 
       if (response.statusCode == 200) {
-        final List<dynamic> list = json.decode(response.body);
+        final list = _parseResponseList(
+          response.body,
+          listKeys: const ['warehouses', 'data'],
+        );
         for (var itemJson in list) {
           await dbHelper.addOrUpdateWarehouse(Warehouse.fromJson(itemJson));
         }
@@ -328,12 +342,19 @@ class SyncNotifier extends StateNotifier<SyncState> {
     try {
       final url = Uri.parse(
           'https://rpsinventory.com/public/api/sync_get_warehouses_products');
+      final lastSync = await dbHelper.getLastSyncDate();
       final response = await http.post(url,
           headers: {'Content-Type': 'application/json'},
-          body: json.encode({'token': token}));
+          body: json.encode({
+            'token': token,
+            'last_sync': lastSync ?? '',
+          }));
 
       if (response.statusCode == 200) {
-        final List<dynamic> list = json.decode(response.body);
+        final list = _parseResponseList(
+          response.body,
+          listKeys: const ['warehouses_products', 'data'],
+        );
         for (var itemJson in list) {
           await dbHelper
               .addOrUpdateWarehouseProduct(WarehouseProduct.fromJson(itemJson));
@@ -392,12 +413,19 @@ class SyncNotifier extends StateNotifier<SyncState> {
     try {
       final url = Uri.parse(
           '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_deductibles');
+      final lastSync = await dbHelper.getLastSyncDate();
       final response = await http.post(url,
           headers: {'Content-Type': 'application/json'},
-          body: json.encode({'token': token}));
+          body: json.encode({
+            'token': token,
+            'last_sync': lastSync ?? '',
+          }));
 
       if (response.statusCode == 200) {
-        final List<dynamic> deductibleList = json.decode(response.body);
+        final deductibleList = _parseResponseList(
+          response.body,
+          listKeys: const ['deductibles', 'data'],
+        );
         for (var deductibleJson in deductibleList) {
           await dbHelper
               .addOrUpdateDeductible(Deductible.fromMap(deductibleJson));
@@ -415,6 +443,55 @@ class SyncNotifier extends StateNotifier<SyncState> {
           errorMessage:
           "Error de red al sincronizar deducibles: ${e.toString()}");
     }
+  }
+
+  List<dynamic> _parseResponseList(
+    String body, {
+    required List<String> listKeys,
+  }) {
+    final decoded = json.decode(body);
+    return _extractList(decoded, listKeys);
+  }
+
+  List<dynamic> _extractList(dynamic data, List<String> listKeys) {
+    if (data is List<dynamic>) {
+      return data;
+    }
+
+    if (data is Map<String, dynamic>) {
+      if (data.containsKey('error')) {
+        final error = data['error'];
+        if (error is String && error.isNotEmpty) {
+          throw Exception(error);
+        }
+      }
+
+      for (final key in listKeys) {
+        if (!data.containsKey(key)) {
+          continue;
+        }
+        final nested = _extractList(data[key], listKeys);
+        if (nested.isNotEmpty || data[key] is List<dynamic>) {
+          return nested;
+        }
+      }
+
+      if (data.containsKey('data')) {
+        final nested = _extractList(data['data'], listKeys);
+        if (nested.isNotEmpty || data['data'] is List<dynamic>) {
+          return nested;
+        }
+      }
+
+      if (data.containsKey('results')) {
+        final nested = _extractList(data['results'], listKeys);
+        if (nested.isNotEmpty || data['results'] is List<dynamic>) {
+          return nested;
+        }
+      }
+    }
+
+    return <dynamic>[];
   }
 
   Future<void> _syncWarehousesAlmacen(String token) async {
