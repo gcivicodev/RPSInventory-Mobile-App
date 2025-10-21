@@ -167,7 +167,7 @@ class _ViewSyncCarreroState extends ConsumerState<ViewSyncCarrero> {
         ),
         const SizedBox(height: 24),
         _buildSyncItem(
-          label: 'Sincronizando Bodegas',
+          label: 'Sincronizando Almacenes',
           status: syncState.warehousesStatus,
         ),
         const SizedBox(height: 24),

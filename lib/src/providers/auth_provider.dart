@@ -44,7 +44,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
         await _saveToken(token);
         state = state.copyWith(isLoading: false, token: token, error: null);
 
-        // ¡AQUÍ ESTÁ LA MAGIA!
         // Después de un login exitoso, obtenemos los datos del usuario.
         await _ref.read(userProvider.notifier).fetchUserByToken(token);
 
