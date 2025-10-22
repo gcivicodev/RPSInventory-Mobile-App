@@ -7,6 +7,7 @@ import 'package:rpsinventory/src/models/m_warehouse.dart';
 import 'package:rpsinventory/src/providers/inventory_products_counts_provider.dart';
 import 'package:rpsinventory/src/providers/products_provider.dart';
 import 'package:rpsinventory/src/providers/warehouses_provider.dart';
+import 'package:rpsinventory/src/providers/user_provider.dart';
 import 'package:rpsinventory/src/views/view_scanner.dart';
 
 class AddInventory extends ConsumerStatefulWidget {
@@ -143,11 +144,27 @@ class _AddInventoryState extends ConsumerState<AddInventory> {
         return;
       }
 
+      final currentUser = ref.read(currentUserProvider);
+      final userId = currentUser?.id;
+      final username = currentUser?.username;
+
+      if (userId == null || userId.isEmpty || username == null || username.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo identificar al usuario autenticado.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
       if (isEditing) {
         final updatedCount = InventoryProductsCount(
           id: widget.inventoryCount!.id,
           count: _countedQuantityController.text,
           currentQuantity: _previousQuantityController.text,
+          userId: userId,
+          username: username,
         );
         await DBHelper.instance.updateInventoryProductCount(updatedCount);
       } else {
@@ -161,8 +178,8 @@ class _AddInventoryState extends ConsumerState<AddInventory> {
           end: end,
           createdAt: _startTime,
           updatedAt: end,
-          userId: '1',
-          username: 'default_user',
+          userId: userId,
+          username: username,
         );
         await DBHelper.instance.addInventoryProductCount(newCount);
       }

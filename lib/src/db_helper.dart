@@ -1082,12 +1082,21 @@ class DBHelper {
     InventoryProductsCount inventoryCount,
   ) async {
     final db = await database;
-    final dataToUpdate = {
-      'updated_at': DateTime.now().toIso8601String(),
-      'end': DateTime.now().toIso8601String(),
+    final now = DateTime.now().toIso8601String();
+    final dataToUpdate = <String, dynamic>{
+      'updated_at': now,
+      'end': now,
       'count': inventoryCount.count,
       'current_quantity': inventoryCount.currentQuantity,
     };
+
+    if (inventoryCount.userId != null) {
+      dataToUpdate['user_id'] = inventoryCount.userId;
+    }
+
+    if (inventoryCount.username != null) {
+      dataToUpdate['username'] = inventoryCount.username;
+    }
 
     await db.update(
       'inventory_products_counts',
