@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:rpsinventory/src/config/main_config.dart';
 import 'package:rpsinventory/src/db_helper.dart';
 import 'package:rpsinventory/src/models/m_conduce.dart';
@@ -61,15 +62,16 @@ class SyncState {
       productsStatus: productsStatus ?? this.productsStatus,
       warehousesStatus: warehousesStatus ?? this.warehousesStatus,
       warehousesProductsStatus:
-      warehousesProductsStatus ?? this.warehousesProductsStatus,
+          warehousesProductsStatus ?? this.warehousesProductsStatus,
       conducesStatus: conducesStatus ?? this.conducesStatus,
       deductiblesStatus: deductiblesStatus ?? this.deductiblesStatus,
       movementsStatus: movementsStatus ?? this.movementsStatus,
       inventoryProductsCountsStatus:
-      inventoryProductsCountsStatus ?? this.inventoryProductsCountsStatus,
+          inventoryProductsCountsStatus ?? this.inventoryProductsCountsStatus,
       isSyncComplete: isSyncComplete ?? this.isSyncComplete,
-      errorMessage:
-      clearErrorMessage ? null : errorMessage ?? this.errorMessage,
+      errorMessage: clearErrorMessage
+          ? null
+          : errorMessage ?? this.errorMessage,
     );
   }
 }
@@ -78,8 +80,12 @@ class SyncNotifier extends StateNotifier<SyncState> {
   SyncNotifier() : super(SyncState());
 
   final dbHelper = DBHelper.instance;
+  DateTime? _lastServerSync;
+
+  DateTime? get lastServerSync => _lastServerSync;
 
   Future<void> startSync(String token, String userId) async {
+    _lastServerSync = null;
     state = SyncState();
     await _uploadCarreroData(token);
     if (state.uploadStatus == SyncStatus.completed) {
@@ -88,8 +94,12 @@ class SyncNotifier extends StateNotifier<SyncState> {
     }
   }
 
-  Future<void> startSyncAlmacen(String token, String userId,
-      {String? lastSync}) async {
+  Future<void> startSyncAlmacen(
+    String token,
+    String userId, {
+    String? lastSync,
+  }) async {
+    _lastServerSync = null;
     state = SyncState();
     await _uploadAlmacenData(token);
 
@@ -119,9 +129,10 @@ class SyncNotifier extends StateNotifier<SyncState> {
 
   Future<void> _uploadCarreroData(String token) async {
     state = state.copyWith(
-        uploadStatus: SyncStatus.inProgress,
-        errorMessage: null,
-        clearErrorMessage: true);
+      uploadStatus: SyncStatus.inProgress,
+      errorMessage: null,
+      clearErrorMessage: true,
+    );
     try {
       final conducesFromDb = await dbHelper.getConducesForSync();
       final detailsFromDb = await dbHelper.getConduceDetailsForSync();
@@ -172,13 +183,14 @@ class SyncNotifier extends StateNotifier<SyncState> {
 
   Future<void> _uploadAlmacenData(String token) async {
     state = state.copyWith(
-        uploadStatus: SyncStatus.inProgress,
-        errorMessage: null,
-        clearErrorMessage: true);
+      uploadStatus: SyncStatus.inProgress,
+      errorMessage: null,
+      clearErrorMessage: true,
+    );
     try {
       final movementsToSync = await dbHelper.getMovementsForSync();
-      final inventoryToSync =
-      await dbHelper.getInventoryProductsCountsForSync();
+      final inventoryToSync = await dbHelper
+          .getInventoryProductsCountsForSync();
 
       if (movementsToSync.isNotEmpty) {
         await _postData(
@@ -211,7 +223,8 @@ class SyncNotifier extends StateNotifier<SyncState> {
     required Map<String, dynamic> body,
   }) async {
     final url = Uri.parse(
-        '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/$endpoint');
+      '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/$endpoint',
+    );
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -219,8 +232,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
     );
 
     if (response.statusCode != 200) {
-      final error =
-          json.decode(response.body)['error'] ?? 'Error en $endpoint';
+      final error = json.decode(response.body)['error'] ?? 'Error en $endpoint';
       throw Exception(error);
     }
   }
@@ -252,21 +264,23 @@ class SyncNotifier extends StateNotifier<SyncState> {
 
   Future<void> _syncProducts(String token) async {
     state = state.copyWith(
-        productsStatus: SyncStatus.inProgress,
-        errorMessage: null,
-        clearErrorMessage: true);
+      productsStatus: SyncStatus.inProgress,
+      errorMessage: null,
+      clearErrorMessage: true,
+    );
     try {
       final url = Uri.parse(
-          '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_products');
+        '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_products',
+      );
       final lastSync = await dbHelper.getLastSyncDate();
-      final response = await http.post(url,
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({
-            'token': token,
-            'last_sync': lastSync ?? '',
-          }));
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'token': token, 'last_sync': lastSync ?? ''}),
+      );
 
       if (response.statusCode == 200) {
+        _recordServerSync(_extractServerDate(response.headers));
         final productList = _parseResponseList(
           response.body,
           listKeys: const ['products', 'data'],
@@ -276,35 +290,41 @@ class SyncNotifier extends StateNotifier<SyncState> {
         }
         state = state.copyWith(productsStatus: SyncStatus.completed);
       } else {
-        final error = json.decode(response.body)['error'] ??
+        final error =
+            json.decode(response.body)['error'] ??
             'Error al sincronizar productos';
-        state =
-            state.copyWith(productsStatus: SyncStatus.error, errorMessage: error);
+        state = state.copyWith(
+          productsStatus: SyncStatus.error,
+          errorMessage: error,
+        );
       }
     } catch (e) {
       state = state.copyWith(
-          productsStatus: SyncStatus.error,
-          errorMessage: "Error de red: ${e.toString()}");
+        productsStatus: SyncStatus.error,
+        errorMessage: "Error de red: ${e.toString()}",
+      );
     }
   }
 
   Future<void> _syncWarehouses(String token) async {
     state = state.copyWith(
-        warehousesStatus: SyncStatus.inProgress,
-        errorMessage: null,
-        clearErrorMessage: true);
+      warehousesStatus: SyncStatus.inProgress,
+      errorMessage: null,
+      clearErrorMessage: true,
+    );
     try {
-      final url =
-      Uri.parse('https://rpsinventory.com/public/api/sync_get_warehouses');
+      final url = Uri.parse(
+        'https://rpsinventory.com/public/api/sync_get_warehouses',
+      );
       final lastSync = await dbHelper.getLastSyncDate();
-      final response = await http.post(url,
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({
-            'token': token,
-            'last_sync': lastSync ?? '',
-          }));
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'token': token, 'last_sync': lastSync ?? ''}),
+      );
 
       if (response.statusCode == 200) {
+        _recordServerSync(_extractServerDate(response.headers));
         final list = _parseResponseList(
           response.body,
           listKeys: const ['warehouses', 'data'],
@@ -314,126 +334,151 @@ class SyncNotifier extends StateNotifier<SyncState> {
         }
         state = state.copyWith(warehousesStatus: SyncStatus.completed);
       } else {
-        final error = json.decode(response.body)['error'] ??
+        final error =
+            json.decode(response.body)['error'] ??
             'Error al sincronizar bodegas';
         state = state.copyWith(
-            warehousesStatus: SyncStatus.error, errorMessage: error);
+          warehousesStatus: SyncStatus.error,
+          errorMessage: error,
+        );
       }
     } catch (e) {
       state = state.copyWith(
-          warehousesStatus: SyncStatus.error,
-          errorMessage: "Error de red: ${e.toString()}");
+        warehousesStatus: SyncStatus.error,
+        errorMessage: "Error de red: ${e.toString()}",
+      );
     }
   }
 
   Future<void> _syncWarehousesProducts(String token) async {
     state = state.copyWith(
-        warehousesProductsStatus: SyncStatus.inProgress,
-        errorMessage: null,
-        clearErrorMessage: true);
+      warehousesProductsStatus: SyncStatus.inProgress,
+      errorMessage: null,
+      clearErrorMessage: true,
+    );
     try {
       final url = Uri.parse(
-          'https://rpsinventory.com/public/api/sync_get_warehouses_products');
+        'https://rpsinventory.com/public/api/sync_get_warehouses_products',
+      );
       final lastSync = await dbHelper.getLastSyncDate();
-      final response = await http.post(url,
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({
-            'token': token,
-            'last_sync': lastSync ?? '',
-          }));
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'token': token, 'last_sync': lastSync ?? ''}),
+      );
 
       if (response.statusCode == 200) {
+        _recordServerSync(_extractServerDate(response.headers));
         final list = _parseResponseList(
           response.body,
           listKeys: const ['warehouses_products', 'data'],
         );
         for (var itemJson in list) {
-          await dbHelper
-              .addOrUpdateWarehouseProduct(WarehouseProduct.fromJson(itemJson));
+          await dbHelper.addOrUpdateWarehouseProduct(
+            WarehouseProduct.fromJson(itemJson),
+          );
         }
         state = state.copyWith(warehousesProductsStatus: SyncStatus.completed);
       } else {
-        final error = json.decode(response.body)['error'] ??
+        final error =
+            json.decode(response.body)['error'] ??
             'Error al sincronizar inventario de bodegas';
         state = state.copyWith(
-            warehousesProductsStatus: SyncStatus.error, errorMessage: error);
+          warehousesProductsStatus: SyncStatus.error,
+          errorMessage: error,
+        );
       }
     } catch (e) {
       state = state.copyWith(
-          warehousesProductsStatus: SyncStatus.error,
-          errorMessage: "Error de red: ${e.toString()}");
+        warehousesProductsStatus: SyncStatus.error,
+        errorMessage: "Error de red: ${e.toString()}",
+      );
     }
   }
 
   Future<void> _syncConduces(String token, String userId) async {
     state = state.copyWith(
-        conducesStatus: SyncStatus.inProgress,
-        errorMessage: null,
-        clearErrorMessage: true);
+      conducesStatus: SyncStatus.inProgress,
+      errorMessage: null,
+      clearErrorMessage: true,
+    );
     try {
       final url = Uri.parse(
-          '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_conduces');
-      final response = await http.post(url,
-          headers: {'Content-Type': 'application/json'},
-          body:
-          json.encode({'token': token, 'user_id': userId, 'conduces': []}));
+        '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_conduces',
+      );
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'token': token, 'user_id': userId, 'conduces': []}),
+      );
 
       if (response.statusCode == 200) {
+        _recordServerSync(_extractServerDate(response.headers));
         final List<dynamic> conduceList = json.decode(response.body);
         for (var conduceJson in conduceList) {
           await dbHelper.addOrUpdateConduce(Conduce.fromJson(conduceJson));
         }
         state = state.copyWith(conducesStatus: SyncStatus.completed);
       } else {
-        final error = json.decode(response.body)['error'] ??
+        final error =
+            json.decode(response.body)['error'] ??
             'Error al sincronizar conduces';
-        state =
-            state.copyWith(conducesStatus: SyncStatus.error, errorMessage: error);
+        state = state.copyWith(
+          conducesStatus: SyncStatus.error,
+          errorMessage: error,
+        );
       }
     } catch (e) {
       state = state.copyWith(
-          conducesStatus: SyncStatus.error,
-          errorMessage: "Error de red: ${e.toString()}");
+        conducesStatus: SyncStatus.error,
+        errorMessage: "Error de red: ${e.toString()}",
+      );
     }
   }
 
   Future<void> _syncDeductibles(String token) async {
     state = state.copyWith(
-        deductiblesStatus: SyncStatus.inProgress,
-        errorMessage: null,
-        clearErrorMessage: true);
+      deductiblesStatus: SyncStatus.inProgress,
+      errorMessage: null,
+      clearErrorMessage: true,
+    );
     try {
       final url = Uri.parse(
-          '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_deductibles');
+        '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_deductibles',
+      );
       final lastSync = await dbHelper.getLastSyncDate();
-      final response = await http.post(url,
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({
-            'token': token,
-            'last_sync': lastSync ?? '',
-          }));
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'token': token, 'last_sync': lastSync ?? ''}),
+      );
 
       if (response.statusCode == 200) {
+        _recordServerSync(_extractServerDate(response.headers));
         final deductibleList = _parseResponseList(
           response.body,
           listKeys: const ['deductibles', 'data'],
         );
         for (var deductibleJson in deductibleList) {
-          await dbHelper
-              .addOrUpdateDeductible(Deductible.fromMap(deductibleJson));
+          await dbHelper.addOrUpdateDeductible(
+            Deductible.fromMap(deductibleJson),
+          );
         }
         state = state.copyWith(deductiblesStatus: SyncStatus.completed);
       } else {
-        final error = json.decode(response.body)['error'] ??
+        final error =
+            json.decode(response.body)['error'] ??
             'Error al sincronizar deducibles';
         state = state.copyWith(
-            deductiblesStatus: SyncStatus.error, errorMessage: error);
+          deductiblesStatus: SyncStatus.error,
+          errorMessage: error,
+        );
       }
     } catch (e) {
       state = state.copyWith(
-          deductiblesStatus: SyncStatus.error,
-          errorMessage:
-          "Error de red al sincronizar deducibles: ${e.toString()}");
+        deductiblesStatus: SyncStatus.error,
+        errorMessage: "Error de red al sincronizar deducibles: ${e.toString()}",
+      );
     }
   }
 
@@ -486,169 +531,250 @@ class SyncNotifier extends StateNotifier<SyncState> {
     return <dynamic>[];
   }
 
-  Future<void> _syncWarehousesAlmacen(
-      String token, String lastSync) async {
+  Future<void> _syncWarehousesAlmacen(String token, String lastSync) async {
     state = state.copyWith(
-        warehousesStatus: SyncStatus.inProgress,
-        errorMessage: null,
-        clearErrorMessage: true);
+      warehousesStatus: SyncStatus.inProgress,
+      errorMessage: null,
+      clearErrorMessage: true,
+    );
     try {
       final url = Uri.parse(
-          '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_warehouses_almacen');
-      final response = await http.post(url,
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({'token': token, 'last_sync': lastSync}));
+        '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_warehouses_almacen',
+      );
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'token': token, 'last_sync': lastSync}),
+      );
 
       if (response.statusCode == 200) {
+        _recordServerSync(_extractServerDate(response.headers));
         final List<dynamic> list = json.decode(response.body);
         for (var itemJson in list) {
           await dbHelper.addOrUpdateWarehouse(Warehouse.fromJson(itemJson));
         }
         state = state.copyWith(warehousesStatus: SyncStatus.completed);
       } else {
-        final error = json.decode(response.body)['error'] ??
+        final error =
+            json.decode(response.body)['error'] ??
             'Error al sincronizar almacenes';
         state = state.copyWith(
-            warehousesStatus: SyncStatus.error, errorMessage: error);
+          warehousesStatus: SyncStatus.error,
+          errorMessage: error,
+        );
       }
     } catch (e) {
       state = state.copyWith(
-          warehousesStatus: SyncStatus.error,
-          errorMessage: "Error de red: ${e.toString()}");
+        warehousesStatus: SyncStatus.error,
+        errorMessage: "Error de red: ${e.toString()}",
+      );
     }
   }
 
   Future<void> _syncWarehousesProductsAlmacen(
-      String token, String lastSync) async {
+    String token,
+    String lastSync,
+  ) async {
     state = state.copyWith(
-        warehousesProductsStatus: SyncStatus.inProgress,
-        errorMessage: null,
-        clearErrorMessage: true);
+      warehousesProductsStatus: SyncStatus.inProgress,
+      errorMessage: null,
+      clearErrorMessage: true,
+    );
     try {
       final url = Uri.parse(
-          '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_warehouses_products_almacen');
-      final response = await http.post(url,
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({'token': token, 'last_sync': lastSync}));
+        '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_warehouses_products_almacen',
+      );
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'token': token, 'last_sync': lastSync}),
+      );
 
       if (response.statusCode == 200) {
+        _recordServerSync(_extractServerDate(response.headers));
         final List<dynamic> list = json.decode(response.body);
         for (var itemJson in list) {
-          await dbHelper
-              .addOrUpdateWarehouseProduct(WarehouseProduct.fromJson(itemJson));
+          await dbHelper.addOrUpdateWarehouseProduct(
+            WarehouseProduct.fromJson(itemJson),
+          );
         }
         state = state.copyWith(warehousesProductsStatus: SyncStatus.completed);
       } else {
-        final error = json.decode(response.body)['error'] ??
+        final error =
+            json.decode(response.body)['error'] ??
             'Error al sincronizar productos de almacén';
         state = state.copyWith(
-            warehousesProductsStatus: SyncStatus.error, errorMessage: error);
+          warehousesProductsStatus: SyncStatus.error,
+          errorMessage: error,
+        );
       }
     } catch (e) {
       state = state.copyWith(
-          warehousesProductsStatus: SyncStatus.error,
-          errorMessage: "Error de red: ${e.toString()}");
+        warehousesProductsStatus: SyncStatus.error,
+        errorMessage: "Error de red: ${e.toString()}",
+      );
     }
   }
 
   Future<void> _syncProductsAlmacen(String token, String lastSync) async {
     state = state.copyWith(
-        productsStatus: SyncStatus.inProgress,
-        errorMessage: null,
-        clearErrorMessage: true);
+      productsStatus: SyncStatus.inProgress,
+      errorMessage: null,
+      clearErrorMessage: true,
+    );
     try {
       final url = Uri.parse(
-          '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_products_almacen');
-      final response = await http.post(url,
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({'token': token, 'last_sync': lastSync}));
+        '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_products_almacen',
+      );
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'token': token, 'last_sync': lastSync}),
+      );
 
       if (response.statusCode == 200) {
+        _recordServerSync(_extractServerDate(response.headers));
         final List<dynamic> productList = json.decode(response.body);
         for (var productJson in productList) {
           await dbHelper.addOrUpdateProduct(Product.fromJson(productJson));
         }
         state = state.copyWith(productsStatus: SyncStatus.completed);
       } else {
-        final error = json.decode(response.body)['error'] ??
+        final error =
+            json.decode(response.body)['error'] ??
             'Error al sincronizar productos';
-        state =
-            state.copyWith(productsStatus: SyncStatus.error, errorMessage: error);
+        state = state.copyWith(
+          productsStatus: SyncStatus.error,
+          errorMessage: error,
+        );
       }
     } catch (e) {
       state = state.copyWith(
-          productsStatus: SyncStatus.error,
-          errorMessage: "Error de red: ${e.toString()}");
+        productsStatus: SyncStatus.error,
+        errorMessage: "Error de red: ${e.toString()}",
+      );
     }
   }
 
   Future<void> _syncMovementsAlmacen(String token, String lastSync) async {
     state = state.copyWith(
-        movementsStatus: SyncStatus.inProgress,
-        errorMessage: null,
-        clearErrorMessage: true);
+      movementsStatus: SyncStatus.inProgress,
+      errorMessage: null,
+      clearErrorMessage: true,
+    );
     try {
       final url = Uri.parse(
-          '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_warehouses_products_movements_almacen');
-      final response = await http.post(url,
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({'token': token, 'last_sync': lastSync}));
+        '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_warehouses_products_movements_almacen',
+      );
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'token': token, 'last_sync': lastSync}),
+      );
 
       if (response.statusCode == 200) {
+        _recordServerSync(_extractServerDate(response.headers));
         final List<dynamic> movementList = json.decode(response.body);
         for (var movementJson in movementList) {
           final db = await dbHelper.database;
-          await db.insert('movements', Movement.fromJson(movementJson).toMap(),
-              conflictAlgorithm: ConflictAlgorithm.replace);
+          await db.insert(
+            'movements',
+            Movement.fromJson(movementJson).toMap(),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
         }
         state = state.copyWith(movementsStatus: SyncStatus.completed);
       } else {
-        final error = json.decode(response.body)['error'] ??
+        final error =
+            json.decode(response.body)['error'] ??
             'Error al sincronizar movimientos';
         state = state.copyWith(
-            movementsStatus: SyncStatus.error, errorMessage: error);
+          movementsStatus: SyncStatus.error,
+          errorMessage: error,
+        );
       }
     } catch (e) {
       state = state.copyWith(
-          movementsStatus: SyncStatus.error,
-          errorMessage: "Error de red: ${e.toString()}");
+        movementsStatus: SyncStatus.error,
+        errorMessage: "Error de red: ${e.toString()}",
+      );
     }
   }
 
   Future<void> _syncInventory(String token, String lastSync) async {
     state = state.copyWith(
-        inventoryProductsCountsStatus: SyncStatus.inProgress,
-        errorMessage: null,
-        clearErrorMessage: true);
+      inventoryProductsCountsStatus: SyncStatus.inProgress,
+      errorMessage: null,
+      clearErrorMessage: true,
+    );
     try {
       final url = Uri.parse(
-          '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_inventory');
-      final response = await http.post(url,
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({'token': token, 'last_sync': lastSync}));
+        '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/sync_get_inventory',
+      );
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'token': token, 'last_sync': lastSync}),
+      );
 
       if (response.statusCode == 200) {
+        _recordServerSync(_extractServerDate(response.headers));
         final List<dynamic> list = json.decode(response.body);
         final db = await dbHelper.database;
         for (var itemJson in list) {
-          await db.insert('inventory_products_counts',
-              InventoryProductsCount.fromJson(itemJson).toMap(),
-              conflictAlgorithm: ConflictAlgorithm.replace);
+          await db.insert(
+            'inventory_products_counts',
+            InventoryProductsCount.fromJson(itemJson).toMap(),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
         }
-        state =
-            state.copyWith(inventoryProductsCountsStatus: SyncStatus.completed);
+        state = state.copyWith(
+          inventoryProductsCountsStatus: SyncStatus.completed,
+        );
       } else {
-        final error = json.decode(response.body)['error'] ??
+        final error =
+            json.decode(response.body)['error'] ??
             'Error al sincronizar inventario';
         state = state.copyWith(
-            inventoryProductsCountsStatus: SyncStatus.error,
-            errorMessage: error);
+          inventoryProductsCountsStatus: SyncStatus.error,
+          errorMessage: error,
+        );
       }
     } catch (e) {
       state = state.copyWith(
-          inventoryProductsCountsStatus: SyncStatus.error,
-          errorMessage: "Error de red: ${e.toString()}");
+        inventoryProductsCountsStatus: SyncStatus.error,
+        errorMessage: "Error de red: ${e.toString()}",
+      );
     }
+  }
+
+  DateTime? _extractServerDate(Map<String, String> headers) {
+    final headerValue = headers['date'];
+    if (headerValue == null) {
+      return null;
+    }
+    try {
+      return parseHttpDate(headerValue);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _recordServerSync(DateTime? serverUtc) {
+    if (serverUtc == null) {
+      return;
+    }
+    final alignedTimestamp = _alignWithServerClock(serverUtc);
+    if (_lastServerSync == null || alignedTimestamp.isAfter(_lastServerSync!)) {
+      _lastServerSync = alignedTimestamp;
+    }
+  }
+
+  DateTime _alignWithServerClock(DateTime serverUtc) {
+    final localNow = DateTime.now();
+    final utcNow = localNow.toUtc();
+    final delta = serverUtc.difference(utcNow);
+    return localNow.add(delta);
   }
 }
 

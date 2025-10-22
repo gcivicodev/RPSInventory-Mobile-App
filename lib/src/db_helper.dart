@@ -19,6 +19,7 @@ class DBHelper {
   static final DBHelper instance = DBHelper._privateConstructor();
 
   static Database? _database;
+  static const Duration _puertoRicoUtcOffset = Duration(hours: -4);
   Future<Database> get database async => _database ??= await _initDatabase();
 
   Future<Database> _initDatabase() async {
@@ -266,7 +267,6 @@ class DBHelper {
           last_sync TEXT
       )
     ''');
-
   }
 
   Future<List<InventoryProductsCount>> getInventoryProductsCounts() async {
@@ -358,7 +358,8 @@ class DBHelper {
         );
       } else {
         throw Exception(
-            'El producto no existe en el almacén de origen o no hay cantidad.');
+          'El producto no existe en el almacén de origen o no hay cantidad.',
+        );
       }
 
       final destWp = await txn.query(
@@ -539,8 +540,9 @@ class DBHelper {
     }
   }
 
-  Future<List<MovementDetail>> getProviderMovements(
-      {String? searchTerm}) async {
+  Future<List<MovementDetail>> getProviderMovements({
+    String? searchTerm,
+  }) async {
     final db = await database;
     String query = '''
       SELECT
@@ -623,8 +625,11 @@ class DBHelper {
 
   Future<void> addOrUpdateDeductible(Deductible deductible) async {
     final db = await database;
-    await db.insert('deductibles', deductible.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      'deductibles',
+      deductible.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   Future<List<Deductible>> getDeductibles() async {
@@ -640,8 +645,11 @@ class DBHelper {
 
   Future<void> addOrUpdateProduct(Product product) async {
     final db = await database;
-    await db.insert('products', product.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      'products',
+      product.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   Future<List<Product>> getAllProducts() async {
@@ -685,8 +693,10 @@ class DBHelper {
       WHERE p.id = ?
     ''';
 
-    final List<Map<String, dynamic>> maps =
-    await db.rawQuery(query, [conduceId, productId]);
+    final List<Map<String, dynamic>> maps = await db.rawQuery(query, [
+      conduceId,
+      productId,
+    ]);
 
     if (maps.isNotEmpty) {
       return Product.fromMap(maps.first);
@@ -719,8 +729,10 @@ class DBHelper {
     }
   }
 
-  Future<void> addOrUpdateConduce(Conduce conduce,
-      {bool fromSync = false}) async {
+  Future<void> addOrUpdateConduce(
+    Conduce conduce, {
+    bool fromSync = false,
+  }) async {
     final db = await database;
     final batch = db.batch();
 
@@ -730,25 +742,40 @@ class DBHelper {
       conduceMap['completed_at'] = DateTime.now().toIso8601String();
     }
 
-    batch.insert('conduces', conduceMap,
-        conflictAlgorithm: ConflictAlgorithm.replace);
-    batch.delete('conduce_notes',
-        where: 'conduce_id = ?', whereArgs: [conduce.id]);
-    batch.delete('conduce_details',
-        where: 'conduce_id = ?', whereArgs: [conduce.id]);
+    batch.insert(
+      'conduces',
+      conduceMap,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    batch.delete(
+      'conduce_notes',
+      where: 'conduce_id = ?',
+      whereArgs: [conduce.id],
+    );
+    batch.delete(
+      'conduce_details',
+      where: 'conduce_id = ?',
+      whereArgs: [conduce.id],
+    );
 
     for (final note in conduce.notes) {
       final noteMap = note.toMap();
       noteMap['conduce_id'] = conduce.id;
-      batch.insert('conduce_notes', noteMap,
-          conflictAlgorithm: ConflictAlgorithm.replace);
+      batch.insert(
+        'conduce_notes',
+        noteMap,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
     }
 
     for (final detail in conduce.details) {
       final detailMap = detail.toMap();
       detailMap['conduce_id'] = conduce.id;
-      batch.insert('conduce_details', detailMap,
-          conflictAlgorithm: ConflictAlgorithm.replace);
+      batch.insert(
+        'conduce_details',
+        detailMap,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
     }
 
     await batch.commit(noResult: true);
@@ -832,12 +859,15 @@ class DBHelper {
     );
 
     if (conduceMaps.isEmpty) {
-      throw Exception('Conduce con ID $conduceId no encontrado para actualizar');
+      throw Exception(
+        'Conduce con ID $conduceId no encontrado para actualizar',
+      );
     }
 
     final currentStatus = conduceMaps.first['status'] as String?;
-    final newStatus =
-    (currentStatus?.toLowerCase() == 'pendiente') ? 'Completado' : 'Pendiente';
+    final newStatus = (currentStatus?.toLowerCase() == 'pendiente')
+        ? 'Completado'
+        : 'Pendiente';
 
     final Map<String, dynamic> updateData = {'status': newStatus};
     if (newStatus == 'Completado') {
@@ -855,7 +885,9 @@ class DBHelper {
   }
 
   Future<void> updateConduceDetail(
-      int conduceDetailId, Map<String, dynamic> data) async {
+    int conduceDetailId,
+    Map<String, dynamic> data,
+  ) async {
     final db = await instance.database;
     await db.update(
       'conduce_details',
@@ -867,15 +899,22 @@ class DBHelper {
 
   Future<void> addOrUpdateWarehouse(Warehouse warehouse) async {
     final db = await database;
-    await db.insert('warehouses', warehouse.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      'warehouses',
+      warehouse.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   Future<void> addOrUpdateWarehouseProduct(
-      WarehouseProduct warehouseProduct) async {
+    WarehouseProduct warehouseProduct,
+  ) async {
     final db = await database;
-    await db.insert('warehouses_products', warehouseProduct.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      'warehouses_products',
+      warehouseProduct.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   Future<List<Warehouse>> getWarehouses({String? type}) async {
@@ -922,7 +961,8 @@ class DBHelper {
       whereArgs.add(hcpcCode);
     }
 
-    final String query = '''
+    final String query =
+        '''
       SELECT p.*, wp.current_quantity FROM products p
       INNER JOIN warehouses_products wp ON p.id = wp.product_id
       WHERE $whereClause
@@ -984,7 +1024,9 @@ class DBHelper {
   }
 
   Future<Product?> getProductByBarcodeNumberAndWarehouse(
-      String barcodeNumber, int warehouseId) async {
+    String barcodeNumber,
+    int warehouseId,
+  ) async {
     final db = await database;
 
     const String query = '''
@@ -994,8 +1036,10 @@ class DBHelper {
       LIMIT 1
     ''';
 
-    final List<Map<String, dynamic>> maps =
-    await db.rawQuery(query, [barcodeNumber, warehouseId]);
+    final List<Map<String, dynamic>> maps = await db.rawQuery(query, [
+      barcodeNumber,
+      warehouseId,
+    ]);
 
     if (maps.isNotEmpty) {
       return Product.fromMap(maps.first);
@@ -1006,16 +1050,20 @@ class DBHelper {
 
   Future<bool> checkIfConduceDetailsWereAssigned(int conduceId) async {
     final db = await database;
-    final result = await db.rawQuery('''
+    final result = await db.rawQuery(
+      '''
       SELECT COUNT(*) FROM conduce_details
       WHERE conduce_id = ? AND (product_id IS NULL OR product_id <= 0)
-    ''', [conduceId]);
+    ''',
+      [conduceId],
+    );
     final count = Sqflite.firstIntValue(result);
     return count == 0;
   }
 
   Future<void> addInventoryProductCount(
-      InventoryProductsCount inventoryCount) async {
+    InventoryProductsCount inventoryCount,
+  ) async {
     final db = await database;
     final id = await db.insert(
       'inventory_products_counts',
@@ -1031,7 +1079,8 @@ class DBHelper {
   }
 
   Future<void> updateInventoryProductCount(
-      InventoryProductsCount inventoryCount) async {
+    InventoryProductsCount inventoryCount,
+  ) async {
     final db = await database;
     final dataToUpdate = {
       'updated_at': DateTime.now().toIso8601String(),
@@ -1050,13 +1099,12 @@ class DBHelper {
 
   Future<void> updateLastSyncDate(DateTime dateTime, {int syncId = 1}) async {
     final db = await database;
-    final formattedDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(dateTime);
+    final formattedDate = _formatAsPuertoRico(dateTime);
 
-    await db.insert(
-      'last_sync',
-      {'id': syncId, 'last_sync': formattedDate},
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('last_sync', {
+      'id': syncId,
+      'last_sync': formattedDate,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<String?> getLastSyncDate({int syncId = 1}) async {
@@ -1078,5 +1126,20 @@ class DBHelper {
       return value;
     }
     return null;
+  }
+
+  String _formatAsPuertoRico(DateTime dateTime) {
+    final utc = dateTime.isUtc ? dateTime : dateTime.toUtc();
+    final puertoRicoTime = utc.add(_puertoRicoUtcOffset);
+
+    String twoDigits(int value) => value.toString().padLeft(2, '0');
+    final year = puertoRicoTime.year.toString().padLeft(4, '0');
+    final month = twoDigits(puertoRicoTime.month);
+    final day = twoDigits(puertoRicoTime.day);
+    final hour = twoDigits(puertoRicoTime.hour);
+    final minute = twoDigits(puertoRicoTime.minute);
+    final second = twoDigits(puertoRicoTime.second);
+
+    return '$year-$month-$day $hour:$minute:$second';
   }
 }

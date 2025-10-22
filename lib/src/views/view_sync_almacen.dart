@@ -34,11 +34,12 @@ class _ViewSyncAlmacenState extends ConsumerState<ViewSyncAlmacen> {
       final userId = userData.id;
 
       if (userId != null) {
-        final lastSync =
-            await DBHelper.instance.getLastSyncDate(syncId: 2);
-        Future.microtask(() => ref
-            .read(syncProvider.notifier)
-            .startSyncAlmacen(token, userId.toString(), lastSync: lastSync));
+        final lastSync = await DBHelper.instance.getLastSyncDate(syncId: 2);
+        Future.microtask(
+          () => ref
+              .read(syncProvider.notifier)
+              .startSyncAlmacen(token, userId.toString(), lastSync: lastSync),
+        );
       }
     }
   }
@@ -49,11 +50,11 @@ class _ViewSyncAlmacenState extends ConsumerState<ViewSyncAlmacen> {
     }
 
     _isCompletingSync = true;
+    final syncNotifier = ref.read(syncProvider.notifier);
+    final serverTimestamp = syncNotifier.lastServerSync;
+    final effectiveTimestamp = serverTimestamp ?? DateTime.now();
     try {
-      await DBHelper.instance.updateLastSyncDate(
-        DateTime.now(),
-        syncId: 2,
-      );
+      await DBHelper.instance.updateLastSyncDate(effectiveTimestamp, syncId: 2);
       if (!mounted) {
         _isCompletingSync = false;
         return;
@@ -111,19 +112,19 @@ class _ViewSyncAlmacenState extends ConsumerState<ViewSyncAlmacen> {
       ),
       bottomNavigationBar: syncState.isSyncComplete
           ? Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ElevatedButton(
-          onPressed: () {
-            _handleSyncCompletion();
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: primaryColor,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16.0),
-          ),
-          child: const Text('Continuar'),
-        ),
-      )
+              padding: const EdgeInsets.all(16.0),
+              child: ElevatedButton(
+                onPressed: () {
+                  _handleSyncCompletion();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                ),
+                child: const Text('Continuar'),
+              ),
+            )
           : null,
     );
   }

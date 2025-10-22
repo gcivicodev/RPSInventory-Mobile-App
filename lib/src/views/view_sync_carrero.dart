@@ -35,11 +35,12 @@ class _ViewSyncCarreroState extends ConsumerState<ViewSyncCarrero> {
 
       if (userId != null) {
         Future.microtask(
-                () => ref.read(syncProvider.notifier).startSync(token, userId.toString()));
-      } else {
-      }
-    } else {
-    }
+          () => ref
+              .read(syncProvider.notifier)
+              .startSync(token, userId.toString()),
+        );
+      } else {}
+    } else {}
   }
 
   Future<void> _handleSyncCompletion() async {
@@ -49,9 +50,12 @@ class _ViewSyncCarreroState extends ConsumerState<ViewSyncCarrero> {
 
     _isCompletingSync = true;
     final updateLastSync = ref.read(lastSyncUpdaterProvider);
+    final syncNotifier = ref.read(syncProvider.notifier);
+    final serverTimestamp = syncNotifier.lastServerSync;
+    final effectiveTimestamp = serverTimestamp ?? DateTime.now();
 
     try {
-      await updateLastSync(DateTime.now());
+      await updateLastSync(effectiveTimestamp);
       if (!mounted) {
         _isCompletingSync = false;
         return;
@@ -61,7 +65,7 @@ class _ViewSyncCarreroState extends ConsumerState<ViewSyncCarrero> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('No se pudo actualizar la última sincronización'),
+            content: Text('No se pudo actualizar la ultima sincronizacion'),
           ),
         );
       }
@@ -109,17 +113,17 @@ class _ViewSyncCarreroState extends ConsumerState<ViewSyncCarrero> {
       ),
       bottomNavigationBar: syncState.isSyncComplete
           ? Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ElevatedButton(
-          onPressed: _handleSyncCompletion,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: primaryColor,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16.0),
-          ),
-          child: const Text('Continuar'),
-        ),
-      )
+              padding: const EdgeInsets.all(16.0),
+              child: ElevatedButton(
+                onPressed: _handleSyncCompletion,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                ),
+                child: const Text('Continuar'),
+              ),
+            )
           : null,
     );
   }
@@ -138,7 +142,8 @@ class _ViewSyncCarreroState extends ConsumerState<ViewSyncCarrero> {
           label: 'Actualizando datos en la nube',
           status: syncState.uploadStatus,
         ),
-        if (syncState.errorMessage != null && syncState.uploadStatus == SyncStatus.error)
+        if (syncState.errorMessage != null &&
+            syncState.uploadStatus == SyncStatus.error)
           Padding(
             padding: const EdgeInsets.only(top: 20.0),
             child: Text(
