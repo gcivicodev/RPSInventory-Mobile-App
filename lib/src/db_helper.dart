@@ -618,9 +618,107 @@ class DBHelper {
     return await db.query('movements');
   }
 
+  Future<void> syncMovementFromServer(Movement movement) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      final localId = movement.localId;
+
+      if (localId != null) {
+        final existing = await txn.query(
+          'movements',
+          where: 'local_id = ?',
+          whereArgs: [localId],
+          limit: 1,
+        );
+
+        if (existing.isNotEmpty) {
+          final existingId = existing.first['id'] as int;
+          if (movement.id != existingId) {
+            await txn.delete(
+              'movements',
+              where: 'id = ?',
+              whereArgs: [movement.id],
+            );
+          }
+          final data = movement.toMap();
+          data['local_id'] = localId;
+          await txn.update(
+            'movements',
+            data,
+            where: 'id = ?',
+            whereArgs: [existingId],
+          );
+          return;
+        }
+      }
+
+      await txn.delete(
+        'movements',
+        where: 'id = ?',
+        whereArgs: [movement.id],
+      );
+      await txn.insert(
+        'movements',
+        movement.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    });
+  }
+
   Future<List<Map<String, dynamic>>> getInventoryProductsCountsForSync() async {
     final db = await database;
     return await db.query('inventory_products_counts');
+  }
+
+  Future<void> syncInventoryCountFromServer(
+    InventoryProductsCount inventoryCount,
+  ) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      final localId = inventoryCount.localId;
+
+      if (localId != null) {
+        final existing = await txn.query(
+          'inventory_products_counts',
+          where: 'local_id = ?',
+          whereArgs: [localId],
+          limit: 1,
+        );
+
+        if (existing.isNotEmpty) {
+          final existingId = existing.first['id'] as int;
+          if (inventoryCount.id != null && inventoryCount.id != existingId) {
+            await txn.delete(
+              'inventory_products_counts',
+              where: 'id = ?',
+              whereArgs: [inventoryCount.id],
+            );
+          }
+          final data = inventoryCount.toMap();
+          data['local_id'] = localId;
+          await txn.update(
+            'inventory_products_counts',
+            data,
+            where: 'id = ?',
+            whereArgs: [existingId],
+          );
+          return;
+        }
+      }
+
+      if (inventoryCount.id != null) {
+        await txn.delete(
+          'inventory_products_counts',
+          where: 'id = ?',
+          whereArgs: [inventoryCount.id],
+        );
+      }
+      await txn.insert(
+        'inventory_products_counts',
+        inventoryCount.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    });
   }
 
   Future<void> addOrUpdateDeductible(Deductible deductible) async {

@@ -693,12 +693,8 @@ class SyncNotifier extends StateNotifier<SyncState> {
         _recordServerSync(_extractServerDate(response.headers));
         final List<dynamic> movementList = json.decode(response.body);
         for (var movementJson in movementList) {
-          final db = await dbHelper.database;
-          await db.insert(
-            'movements',
-            Movement.fromJson(movementJson).toMap(),
-            conflictAlgorithm: ConflictAlgorithm.replace,
-          );
+          final movement = Movement.fromJson(movementJson);
+          await dbHelper.syncMovementFromServer(movement);
         }
         state = state.copyWith(movementsStatus: SyncStatus.completed);
       } else {
@@ -737,13 +733,9 @@ class SyncNotifier extends StateNotifier<SyncState> {
       if (response.statusCode == 200) {
         _recordServerSync(_extractServerDate(response.headers));
         final List<dynamic> list = json.decode(response.body);
-        final db = await dbHelper.database;
         for (var itemJson in list) {
-          await db.insert(
-            'inventory_products_counts',
-            InventoryProductsCount.fromJson(itemJson).toMap(),
-            conflictAlgorithm: ConflictAlgorithm.replace,
-          );
+          final inventoryCount = InventoryProductsCount.fromJson(itemJson);
+          await dbHelper.syncInventoryCountFromServer(inventoryCount);
         }
         state = state.copyWith(
           inventoryProductsCountsStatus: SyncStatus.completed,

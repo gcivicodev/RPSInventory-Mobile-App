@@ -10,4 +10,4 @@
 - Se recomienda, al procesar la respuesta del servidor, localizar el registro original por local_id y actualizarlo (o reemplazar el id local por el del servidor) antes de insertar el remoto, o bien limpiar la tabla y rehidratar sólo con los datos oficiales devueltos por la API.
 
 ## Ajustes:
-- Ajustar AddInventory para usar las credenciales del usuario autenticado al persistir y sincronizar inventarios.
+- Diseñar la reconciliación de IDs en movimientos/inventarios (borrado previo o actualización por local_id) para que el estado local siempre represente exactamente lo que quedó en la nube.
