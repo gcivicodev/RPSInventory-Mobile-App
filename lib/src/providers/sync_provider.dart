@@ -1,7 +1,12 @@
 import 'dart:convert';
+import 'dart:developer';
+import 'dart:developer';
+import 'dart:developer';
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:rpsinventory/src/config/main_config.dart';
 import 'package:rpsinventory/src/db_helper.dart';
 import 'package:rpsinventory/src/models/m_conduce.dart';
@@ -225,10 +230,22 @@ class SyncNotifier extends StateNotifier<SyncState> {
     final url = Uri.parse(
       '${MainConfig.baseApiUrl}${MainConfig.baseApiUrlPath}/$endpoint',
     );
+    final encodedBody = json.encode(body);
+    // log('[sync_provider] POST $url');
+    // log('[sync_provider] Token: $token');
+    // log('[sync_provider] Body: $encodedBody');
+    // try {
+    //   final directory = await getApplicationDocumentsDirectory();
+    //   final logFile = File('${directory.path}/logs.txt');
+    //   final logContent = 'URL: $url\nToken: $token\nBody: $encodedBody';
+    //   await logFile.writeAsString(logContent);
+    // } catch (e) {
+    //   log('Failed to write sync log: $e');
+    // }
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
-      body: json.encode(body),
+      body: encodedBody,
     );
 
     if (response.statusCode != 200) {
