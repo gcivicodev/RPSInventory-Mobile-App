@@ -80,6 +80,15 @@ class ViewConduces extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error al cargar conduces: $err')),
         data: (conduces) {
+          final sortedConduces = [...conduces]
+            ..sort((a, b) {
+              final aDate = a.serviceDate;
+              final bDate = b.serviceDate;
+              if (aDate == null && bDate == null) return 0;
+              if (aDate == null) return 1;
+              if (bDate == null) return -1;
+              return bDate.compareTo(aDate);
+            });
           if (conduces.isEmpty) {
             return const Center(
               child: Text(
@@ -90,9 +99,9 @@ class ViewConduces extends ConsumerWidget {
           }
           return ListView.builder(
             padding: const EdgeInsets.all(8.0),
-            itemCount: conduces.length,
+            itemCount: sortedConduces.length,
             itemBuilder: (context, index) {
-              final conduce = conduces[index];
+              final conduce = sortedConduces[index];
               return _buildConduceCard(context, ref, conduce, primaryColor);
             },
           );
