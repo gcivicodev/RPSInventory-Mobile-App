@@ -303,10 +303,23 @@ class _ViewUpdateConduceDetailState extends ConsumerState<ViewUpdateConduceDetai
           if (query.isEmpty) return true;
 
           return (product.name?.toLowerCase() ?? '').contains(query) ||
+              (product.hcpcCode?.toLowerCase() ?? '').contains(query) ||
+              (product.size?.toLowerCase() ?? '').contains(query) ||
+              (product.color?.toLowerCase() ?? '').contains(query) ||
+              (product.model?.toLowerCase() ?? '').contains(query) ||
               (product.sku?.toLowerCase() ?? '').contains(query) ||
+              (product.itemNumber?.toLowerCase() ?? '').contains(query) ||
               (product.barcodeNumber?.toLowerCase() ?? '').contains(query) ||
-              (product.itemNumber?.toLowerCase() ?? '').contains(query);
-        }).toList();
+              (product.category?.toLowerCase() ?? '').contains(query);
+        }).toList()
+          ..sort((a, b) {
+            final aName = a.name?.toLowerCase();
+            final bName = b.name?.toLowerCase();
+            if (aName == null && bName == null) return 0;
+            if (aName == null) return 1;
+            if (bName == null) return -1;
+            return aName.compareTo(bName);
+          });
 
         if (filteredProducts.isEmpty) {
           return const Center(
