@@ -12,15 +12,11 @@ double productQuantity
       (ref, data) async {
     final db = DBHelper.instance;
 
-    final price = double.tryParse(data.product.price ?? '0.0') ?? 0.0;
-    final deductible = double.tryParse(data.product.pdeductible ?? '0.0') ?? 0.0;
+    final productPrice = double.tryParse(data.product.price ?? '0.0') ?? 0.0;
+    final productDeductible = double.tryParse(data.product.deductible ?? '0.0') ?? 0.0;
     final quantity = data.productQuantity;
 
-    // final deductibleTotal = (price * quantity) - deductible;
-    double deductibleTotal = deductible * quantity;
-    if(data.product.pdeductibleType?.toLowerCase() == 'variable') {
-      deductibleTotal = deductible;
-    }
+    final deductibleTotal = (quantity * productPrice) - (quantity * productDeductible);
 
     final Map<String, dynamic> updatedData = {
       'product_id': data.product.id,
@@ -32,8 +28,8 @@ double productQuantity
       'product_size': data.product.size,
       'product_model': data.product.model,
       'product_manufactured': data.product.manufactured,
-      'product_deductible': data.product.pdeductible,
-      'product_deductible_type': data.product.pdeductibleType,
+      'product_deductible': data.product.deductible,
+      'product_deductible_type': data.product.deductibleType,
       'product_deductible_total': deductibleTotal.toString(),
       'tag_number': data.tag,
       'warehouse_id': data.warehouseId,

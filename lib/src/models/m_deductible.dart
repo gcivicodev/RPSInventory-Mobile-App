@@ -1,9 +1,18 @@
 // lib/src/models/m_deductible.dart
 
+int? _parseInt(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is String) return int.tryParse(value);
+  return null;
+}
+
 class Deductible {
   final int id;
-  final String? productId;
-  final String? medplanId;
+  final int? productId;
+  final String? hcpcCode;
+  final int? hcpcCodeId;
+  final int? medplanId;
   final String? medPlan;
   final String? deductibleType;
   final String? deductible;
@@ -13,6 +22,8 @@ class Deductible {
   Deductible({
     required this.id,
     this.productId,
+    this.hcpcCode,
+    this.hcpcCodeId,
     this.medplanId,
     this.medPlan,
     this.deductibleType,
@@ -21,13 +32,15 @@ class Deductible {
     this.updatedAt,
   });
 
-  /// Constructor de fábrica para crear una instancia de Deductible desde un mapa (JSON).
-  /// Útil para decodificar la respuesta de la API.
+  /// Constructor de fabrica para crear una instancia de Deductible desde un mapa (JSON).
+  /// Util para decodificar la respuesta de la API.
   factory Deductible.fromMap(Map<String, dynamic> map) {
     return Deductible(
       id: map['id'],
-      productId: map['product_id']?.toString(),
-      medplanId: map['medplan_id']?.toString(),
+      productId: _parseInt(map['product_id']),
+      hcpcCode: map['hcpc_code'],
+      hcpcCodeId: _parseInt(map['hcpc_code_id']),
+      medplanId: _parseInt(map['medplan_id']),
       medPlan: map['med_plan'],
       deductibleType: map['deductible_type'],
       deductible: map['deductible']?.toString(),
@@ -36,12 +49,14 @@ class Deductible {
     );
   }
 
-  /// Método para convertir una instancia de Deductible a un mapa.
+  /// Metodo para convertir una instancia de Deductible a un mapa.
   /// Esencial para insertar/actualizar datos en la base de datos SQLite.
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'product_id': productId,
+      'hcpc_code': hcpcCode,
+      'hcpc_code_id': hcpcCodeId,
       'medplan_id': medplanId,
       'med_plan': medPlan,
       'deductible_type': deductibleType,

@@ -145,10 +145,10 @@ class _ViewUpdateConduceDetailFormState
                       label: 'Cantidad',
                       value: widget.conduceDetail.productQuantity?.toString()),
                   _buildReadOnlyTextField(
-                      label: 'Deducible', value: product.pdeductible ?? '0.00'),
+                      label: 'Deducible', value: product.deductible ?? '0.00'),
                   _buildReadOnlyTextField(
                       label: 'Tipo de Deducible',
-                      value: product.pdeductibleType ?? 'N/A'),
+                      value: product.deductibleType ?? 'N/A'),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _tagController,

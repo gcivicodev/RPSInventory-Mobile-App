@@ -27,7 +27,7 @@ class DBHelper {
     String path = join(documentsDirectory.path, 'rps_inventory.db');
     return await openDatabase(
       path,
-      version: 14,
+      version: 15,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -40,6 +40,9 @@ class DBHelper {
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 14) {
       await _createTables(db);
+    }
+    if (oldVersion < 15) {
+      await _upgradeDeductiblesTable(db);
     }
   }
 
@@ -210,18 +213,7 @@ class DBHelper {
       )
     ''');
 
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS deductibles(
-          id INTEGER PRIMARY KEY,
-          product_id TEXT,
-          medplan_id TEXT,
-          med_plan TEXT,
-          deductible_type TEXT,
-          deductible TEXT,
-          created_at TEXT,
-          updated_at TEXT
-      )
-    ''');
+    await _createDeductiblesTable(db);
 
     await db.execute('''
       CREATE TABLE IF NOT EXISTS movements(
@@ -601,6 +593,61 @@ class DBHelper {
   Future<List<Map<String, dynamic>>> getConducesForSync() async {
     final db = await database;
     return await db.query('conduces');
+  }
+
+  Future<void> _createDeductiblesTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS deductibles(
+          id INTEGER PRIMARY KEY,
+          product_id INTEGER,
+          hcpc_code TEXT,
+          hcpc_code_id INTEGER,
+          medplan_id INTEGER,
+          med_plan TEXT,
+          deductible_type TEXT,
+          deductible TEXT,
+          created_at TEXT,
+          updated_at TEXT
+      )
+    ''');
+  }
+
+  Future<void> _upgradeDeductiblesTable(Database db) async {
+    final columns = await db.rawQuery('PRAGMA table_info(deductibles)');
+    final hasHcpcCodeColumn = columns.any((column) => column['name'] == 'hcpc_code');
+    if (hasHcpcCodeColumn) {
+      return;
+    }
+
+    await db.execute('ALTER TABLE deductibles RENAME TO deductibles_old');
+    await _createDeductiblesTable(db);
+    await db.execute('''
+      INSERT INTO deductibles (
+          id,
+          product_id,
+          hcpc_code,
+          hcpc_code_id,
+          medplan_id,
+          med_plan,
+          deductible_type,
+          deductible,
+          created_at,
+          updated_at
+      )
+      SELECT
+          id,
+          CASE WHEN product_id IS NULL OR product_id = '' THEN NULL ELSE CAST(product_id AS INTEGER) END,
+          NULL,
+          NULL,
+          CASE WHEN medplan_id IS NULL OR medplan_id = '' THEN NULL ELSE CAST(medplan_id AS INTEGER) END,
+          med_plan,
+          deductible_type,
+          deductible,
+          created_at,
+          updated_at
+      FROM deductibles_old
+    ''');
+    await db.execute('DROP TABLE deductibles_old');
   }
 
   Future<List<Map<String, dynamic>>> getConduceDetailsForSync() async {
