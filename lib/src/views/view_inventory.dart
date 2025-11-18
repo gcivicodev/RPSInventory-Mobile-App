@@ -77,15 +77,23 @@ class ViewInventory extends ConsumerWidget {
               ),
             );
           }
+          final sortedInventory = [...inventory]
+            ..sort(
+              (a, b) =>
+                  (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+                      .compareTo(
+                a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+              ),
+            );
           return RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(inventoryProductsCountsProvider);
             },
             child: ListView.builder(
               padding: const EdgeInsets.all(8.0),
-              itemCount: inventory.length,
+              itemCount: sortedInventory.length,
               itemBuilder: (context, index) {
-                final item = inventory[index];
+                final item = sortedInventory[index];
                 return _buildInventoryCard(context, ref, item);
               },
             ),

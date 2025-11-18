@@ -1,5 +1,6 @@
 class MovementDetail {
   final int? id;
+  final DateTime? createdAt;
   final String? productName;
   final String? sku;
   final String? barcodeNumber;
@@ -19,6 +20,7 @@ class MovementDetail {
 
   MovementDetail({
     this.id,
+    this.createdAt,
     this.productName,
     this.sku,
     this.barcodeNumber,
@@ -38,8 +40,17 @@ class MovementDetail {
   });
 
   factory MovementDetail.fromMap(Map<String, dynamic> map) {
+    DateTime? parsedCreatedAt;
+    final rawCreatedAt = map['created_at'];
+    if (rawCreatedAt is String && rawCreatedAt.isNotEmpty) {
+      parsedCreatedAt = DateTime.tryParse(rawCreatedAt);
+    } else if (rawCreatedAt is DateTime) {
+      parsedCreatedAt = rawCreatedAt;
+    }
+
     return MovementDetail(
       id: map['id'],
+      createdAt: parsedCreatedAt,
       productName: map['product_name'],
       sku: map['sku'],
       barcodeNumber: map['barcode_number'],

@@ -481,6 +481,7 @@ class DBHelper {
     String query = '''
       SELECT
         m.id,
+        m.created_at,
         p.name as product_name,
         p.sku,
         p.barcode_number,
@@ -539,6 +540,7 @@ class DBHelper {
     String query = '''
       SELECT
         m.id,
+        m.created_at,
         p.name as product_name,
         p.sku,
         p.barcode_number,

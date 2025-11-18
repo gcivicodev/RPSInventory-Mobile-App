@@ -134,6 +134,14 @@ class _ViewMovementsProvidersState
               error: (err, stack) =>
                   Center(child: Text('Error al cargar movimientos: $err')),
               data: (movements) {
+                final sortedMovements = [...movements]
+                  ..sort(
+                    (a, b) =>
+                        (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+                            .compareTo(
+                      a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+                    ),
+                  );
                 if (movements.isEmpty) {
                   return const Center(
                     child: Text(
@@ -144,9 +152,9 @@ class _ViewMovementsProvidersState
                 }
                 return ListView.builder(
                   padding: const EdgeInsets.all(8.0),
-                  itemCount: movements.length,
+                  itemCount: sortedMovements.length,
                   itemBuilder: (context, index) {
-                    final movement = movements[index];
+                    final movement = sortedMovements[index];
                     return _buildMovementCard(context, movement);
                   },
                 );

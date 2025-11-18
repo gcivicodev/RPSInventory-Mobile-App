@@ -149,6 +149,7 @@ class _AddMovementProviderViewState extends ConsumerState<AddMovementProviderVie
         );
 
         ref.invalidate(movementsProvider);
+        ref.invalidate(providerMovementsProvider);
 
         if (mounted) {
           Navigator.of(context).pop();
