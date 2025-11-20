@@ -1,5 +1,1 @@
-## Context
-En lib\src\views\view_update_conduce_detail.dart el buscador no filtra por todas las columnas.
-
-## ActionPlan
-Modifica lo necesario para que el buscador pueda filtrar por product.hcpcCode, product.size, product.color, product.model, product.sku, product.barcodeNumber, product.category.
+git checkout dev;git add .;git commit -m "commit";git push -u origin dev;git  branch -D dev_local;git checkout -b dev_local

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rpsinventory/src/config/main_config.dart';
+import 'package:rpsinventory/src/db_helper.dart';
 import 'package:rpsinventory/src/models/m_user.dart';
 import 'user_provider.dart'; // Importamos el nuevo provider
 
@@ -46,7 +47,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
         // Después de un login exitoso, obtenemos los datos del usuario.
         await _ref.read(userProvider.notifier).fetchUserByToken(token);
-
+        final userData = _ref.read(userProvider).userData;
+        if (userData != null) {
+          final dbHelper = DBHelper.instance;
+          // final previousFlags = await dbHelper.getLastUserFlags();
+          // final currentFlags = userData.flags;
+          // if (previousFlags != currentFlags) {
+          //   await dbHelper.clearWarehousesData();
+          // }
+          await dbHelper.saveLastUserFlags(currentFlags);
+        }
       } else {
         final errorMessage = responseBody['error'] ?? 'Error desconocido';
         state = state.copyWith(isLoading: false, error: errorMessage);

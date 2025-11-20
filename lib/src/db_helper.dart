@@ -259,6 +259,13 @@ class DBHelper {
           last_sync TEXT
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS last_user_sync(
+          id INTEGER PRIMARY KEY,
+          user_flags TEXT
+      )
+    ''');
   }
 
   Future<List<InventoryProductsCount>> getInventoryProductsCounts() async {
@@ -1282,6 +1289,40 @@ class DBHelper {
       return value;
     }
     return null;
+  }
+
+  Future<void> saveLastUserFlags(String? flags, {int recordId = 1}) async {
+    final db = await database;
+    await db.insert(
+      'last_user_sync',
+      {
+        'id': recordId,
+        'user_flags': flags,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<String?> getLastUserFlags({int recordId = 1}) async {
+    final db = await database;
+    final result = await db.query(
+      'last_user_sync',
+      columns: ['user_flags'],
+      where: 'id = ?',
+      whereArgs: [recordId],
+      limit: 1,
+    );
+    if (result.isEmpty) return null;
+    final value = result.first['user_flags'];
+    return value is String ? value : null;
+  }
+
+  Future<void> clearWarehousesData() async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('warehouses_products');
+      await txn.delete('warehouses');
+    });
   }
 
   String _formatAsPuertoRico(DateTime dateTime) {
