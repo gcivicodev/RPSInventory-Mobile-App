@@ -1317,6 +1317,22 @@ class DBHelper {
     return value is String ? value : null;
   }
 
+  Future<void> resetDataForUserChange() async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('conduce_notes');
+      await txn.delete('conduce_details');
+      await txn.delete('conduces');
+      await txn.delete('movements');
+      await txn.delete('inventory_products_counts');
+      await txn.delete('warehouses_products');
+      await txn.delete('warehouses');
+      await txn.delete('deductibles');
+      await txn.delete('products');
+      await txn.delete('last_sync');
+    });
+  }
+
   Future<void> clearWarehousesData() async {
     final db = await database;
     await db.transaction((txn) async {

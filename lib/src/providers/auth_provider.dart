@@ -50,11 +50,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
         final userData = _ref.read(userProvider).userData;
         if (userData != null) {
           final dbHelper = DBHelper.instance;
-          // final previousFlags = await dbHelper.getLastUserFlags();
-          // final currentFlags = userData.flags;
-          // if (previousFlags != currentFlags) {
-          //   await dbHelper.clearWarehousesData();
-          // }
+          final previousFlags = await dbHelper.getLastUserFlags();
+          final currentFlags = userData.flags;
+          final shouldResetData =
+              currentFlags != null && previousFlags != currentFlags;
+          if (shouldResetData) {
+            await dbHelper.resetDataForUserChange();
+          }
           await dbHelper.saveLastUserFlags(currentFlags);
         }
       } else {
@@ -75,6 +77,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('authToken');
     await prefs.remove('userData');
+    _ref.invalidate(userProvider);
     state = AuthState();
   }
 }
