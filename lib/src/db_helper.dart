@@ -659,9 +659,25 @@ class DBHelper {
     await db.execute('DROP TABLE deductibles_old');
   }
 
-  Future<List<Map<String, dynamic>>> getConduceDetailsForSync() async {
+  Future<List<Map<String, dynamic>>> getConduceDetailsForSync({
+    String? lastSync,
+  }) async {
     final db = await database;
-    return await db.query('conduce_details');
+    var where = 'product_id IS NOT NULL AND product_id > 0 '
+        'AND warehouse_id IS NOT NULL AND warehouse_id > 0';
+    List<Object?>? whereArgs;
+
+    if (lastSync != null && lastSync.isNotEmpty) {
+      where += ' AND (datetime(updated_at) > datetime(?) '
+          'OR datetime(created_at) > datetime(?))';
+      whereArgs = [lastSync, lastSync];
+    }
+
+    return await db.query(
+      'conduce_details',
+      where: where,
+      whereArgs: whereArgs,
+    );
   }
 
   Future<List<Map<String, dynamic>>> getConduceNotesForSync() async {

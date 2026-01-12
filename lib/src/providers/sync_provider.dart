@@ -140,7 +140,10 @@ class SyncNotifier extends StateNotifier<SyncState> {
     );
     try {
       final conducesFromDb = await dbHelper.getConducesForSync();
-      final detailsFromDb = await dbHelper.getConduceDetailsForSync();
+      final lastSync = await dbHelper.getLastSyncDate();
+      final detailsFromDb = await dbHelper.getConduceDetailsForSync(
+        lastSync: lastSync,
+      );
       final notesToSync = await dbHelper.getConduceNotesForSync();
 
       final conducesToSync = conducesFromDb.map((conduce) {
