@@ -27,6 +27,8 @@ class _AddInventoryState extends ConsumerState<AddInventory> {
   Product? _selectedProduct;
   final _countedQuantityController = TextEditingController();
   final _previousQuantityController = TextEditingController();
+  TextEditingController? _warehouseSearchController;
+  TextEditingController? _productSearchController;
 
   bool get isEditing => widget.inventoryCount != null;
 
@@ -38,6 +40,12 @@ class _AddInventoryState extends ConsumerState<AddInventory> {
       _startTime = item.start;
       _selectedWarehouse = item.warehouse;
       _selectedProduct = item.product;
+      if (item.warehouse != null) {
+        _warehouseSearchController?.text = _warehouseLabel(item.warehouse!);
+      }
+      if (item.product != null) {
+        _productSearchController?.text = _productLabel(item.product!);
+      }
       _previousQuantityController.text = item.currentQuantity ?? '';
       _countedQuantityController.text = item.count ?? '';
     } else {
@@ -50,6 +58,19 @@ class _AddInventoryState extends ConsumerState<AddInventory> {
     _countedQuantityController.dispose();
     _previousQuantityController.dispose();
     super.dispose();
+  }
+
+  String _warehouseLabel(Warehouse warehouse) => warehouse.name ?? 'N/A';
+
+  String _productLabel(Product product) {
+    final parts = [
+      product.name,
+      product.sku,
+      product.color,
+      product.model,
+      product.size,
+    ].where((part) => part != null && part.toString().isNotEmpty);
+    return parts.isEmpty ? 'N/A' : parts.join(' - ');
   }
 
   Future<void> _scanBarcode() async {
@@ -99,6 +120,7 @@ class _AddInventoryState extends ConsumerState<AddInventory> {
         if (productInList != null) {
           setState(() {
             _selectedProduct = productInList;
+            _productSearchController?.text = _productLabel(productInList!);
             _previousQuantityController.text =
                 productInList?.currentQuantity?.toString() ?? '0';
           });
@@ -227,30 +249,69 @@ class _AddInventoryState extends ConsumerState<AddInventory> {
             children: [
               warehousesAsync.when(
                 data: (warehouses) {
-                  return DropdownButtonFormField<Warehouse>(
-                    decoration: const InputDecoration(
-                      labelText: 'Almacén',
-                      border: OutlineInputBorder(),
-                    ),
-                    value: _selectedWarehouse,
-                    items: warehouses
-                        .map((w) => DropdownMenuItem(
-                      value: w,
-                      child: Text(w.name ?? 'N/A'),
-                    ))
-                        .toList(),
-                    onChanged: isEditing
-                        ? null
-                        : (value) {
-                      setState(() {
-                        _selectedWarehouse = value;
-                        _selectedProduct = null;
-                        _previousQuantityController.clear();
-                        _countedQuantityController.clear();
+                  return Autocomplete<Warehouse>(
+                    displayStringForOption: _warehouseLabel,
+                    optionsBuilder: (textEditingValue) {
+                      final query = textEditingValue.text.trim().toLowerCase();
+                      if (query.isEmpty) {
+                        return warehouses;
+                      }
+                      return warehouses.where((warehouse) {
+                        final name = warehouse.name ?? '';
+                        return name.toLowerCase().contains(query);
                       });
                     },
-                    validator: (value) =>
-                    value == null ? 'Seleccione un almacén' : null,
+                    onSelected: isEditing
+                        ? null
+                        : (warehouse) {
+                            setState(() {
+                              _selectedWarehouse = warehouse;
+                              _selectedProduct = null;
+                              _productSearchController?.clear();
+                              _previousQuantityController.clear();
+                              _countedQuantityController.clear();
+                            });
+                          },
+                    fieldViewBuilder: (
+                      context,
+                      textEditingController,
+                      focusNode,
+                      onFieldSubmitted,
+                    ) {
+                      if (_warehouseSearchController != textEditingController) {
+                        _warehouseSearchController = textEditingController;
+                        if ((_warehouseSearchController?.text.isEmpty ?? true) &&
+                            _selectedWarehouse != null) {
+                          _warehouseSearchController!.text =
+                              _warehouseLabel(_selectedWarehouse!);
+                        }
+                      }
+                      return TextFormField(
+                        controller: textEditingController,
+                        focusNode: focusNode,
+                        decoration: const InputDecoration(
+                          labelText: 'Almacén',
+                          border: OutlineInputBorder(),
+                        ),
+                        enabled: !isEditing,
+                        validator: (_) => _selectedWarehouse == null
+                            ? 'Seleccione un almacén'
+                            : null,
+                        onChanged: (value) {
+                          if (_selectedWarehouse != null &&
+                              value != _warehouseLabel(_selectedWarehouse!)) {
+                            setState(() {
+                              _selectedWarehouse = null;
+                              _selectedProduct = null;
+                              _productSearchController?.clear();
+                              _previousQuantityController.clear();
+                              _countedQuantityController.clear();
+                            });
+                          }
+                        },
+                        onFieldSubmitted: (_) => onFieldSubmitted(),
+                      );
+                    },
                   );
                 },
                 loading: () => const Center(child: CircularProgressIndicator()),
@@ -265,34 +326,65 @@ class _AddInventoryState extends ConsumerState<AddInventory> {
                         productsByWarehouseProvider(_selectedWarehouse!.id));
                     return productsAsync.when(
                       data: (products) {
-                        return DropdownButtonFormField<Product>(
-                          decoration: const InputDecoration(
-                            labelText: 'Producto',
-                            border: OutlineInputBorder(),
-                          ),
-                          value: _selectedProduct,
-                          isExpanded: true,
-                          items: products
-                              .map((p) => DropdownMenuItem(
-                            value: p,
-                            child: Text(
-                              '${p.name} - ${p.sku} - ${p.color} - ${p.model} - ${p.size}',
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ))
-                              .toList(),
-                          onChanged: isEditing
-                              ? null
-                              : (value) {
-                            setState(() {
-                              _selectedProduct = value;
-                              _previousQuantityController.text =
-                                  value?.currentQuantity?.toString() ??
-                                      '0';
+                        return Autocomplete<Product>(
+                          displayStringForOption: _productLabel,
+                          optionsBuilder: (textEditingValue) {
+                            final query =
+                                textEditingValue.text.trim().toLowerCase();
+                            if (query.isEmpty) {
+                              return products;
+                            }
+                            return products.where((product) {
+                              final haystack = _productLabel(product).toLowerCase();
+                              return haystack.contains(query);
                             });
                           },
-                          validator: (value) =>
-                          value == null ? 'Seleccione un producto' : null,
+                          onSelected: isEditing
+                              ? null
+                              : (product) {
+                                  setState(() {
+                                    _selectedProduct = product;
+                                    _previousQuantityController.text =
+                                        product.currentQuantity?.toString() ?? '0';
+                                  });
+                                },
+                          fieldViewBuilder: (
+                            context,
+                            textEditingController,
+                            focusNode,
+                            onFieldSubmitted,
+                          ) {
+                            if (_productSearchController != textEditingController) {
+                              _productSearchController = textEditingController;
+                              if ((_productSearchController?.text.isEmpty ?? true) &&
+                                  _selectedProduct != null) {
+                                _productSearchController!.text =
+                                    _productLabel(_selectedProduct!);
+                              }
+                            }
+                            return TextFormField(
+                              controller: textEditingController,
+                              focusNode: focusNode,
+                              decoration: const InputDecoration(
+                                labelText: 'Producto',
+                                border: OutlineInputBorder(),
+                              ),
+                              enabled: !isEditing,
+                              validator: (_) => _selectedProduct == null
+                                  ? 'Seleccione un producto'
+                                  : null,
+                              onChanged: (value) {
+                                if (_selectedProduct != null &&
+                                    value != _productLabel(_selectedProduct!)) {
+                                  setState(() {
+                                    _selectedProduct = null;
+                                    _previousQuantityController.clear();
+                                  });
+                                }
+                              },
+                              onFieldSubmitted: (_) => onFieldSubmitted(),
+                            );
+                          },
                         );
                       },
                       loading: () =>
