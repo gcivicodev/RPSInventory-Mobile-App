@@ -28,6 +28,7 @@ class ViewMovementsProviders extends ConsumerStatefulWidget {
 class _ViewMovementsProvidersState
     extends ConsumerState<ViewMovementsProviders> {
   final _searchController = TextEditingController();
+  static const int _maxMovementsToShow = 20;
 
   @override
   void initState() {
@@ -142,7 +143,7 @@ class _ViewMovementsProvidersState
                       a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
                     ),
                   );
-                if (movements.isEmpty) {
+                if (sortedMovements.isEmpty) {
                   return const Center(
                     child: Text(
                       'No se encontraron movimientos.',
@@ -150,11 +151,14 @@ class _ViewMovementsProvidersState
                     ),
                   );
                 }
+                final limitedMovements = sortedMovements
+                    .take(_maxMovementsToShow)
+                    .toList(growable: false);
                 return ListView.builder(
                   padding: const EdgeInsets.all(8.0),
-                  itemCount: sortedMovements.length,
+                  itemCount: limitedMovements.length,
                   itemBuilder: (context, index) {
-                    final movement = sortedMovements[index];
+                    final movement = limitedMovements[index];
                     return _buildMovementCard(context, movement);
                   },
                 );

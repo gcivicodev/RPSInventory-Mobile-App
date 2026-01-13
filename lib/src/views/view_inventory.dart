@@ -22,6 +22,7 @@ class ViewInventory extends ConsumerStatefulWidget {
 
 class _ViewInventoryState extends ConsumerState<ViewInventory> {
   final _searchController = TextEditingController();
+  static const int _maxInventoryToShow = 20;
 
   @override
   void initState() {
@@ -136,15 +137,18 @@ class _ViewInventoryState extends ConsumerState<ViewInventory> {
                       a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
                     ),
                   );
+                final limitedInventory = sortedInventory
+                    .take(_maxInventoryToShow)
+                    .toList(growable: false);
                 return RefreshIndicator(
                   onRefresh: () async {
                     ref.invalidate(inventoryProductsCountsProvider);
                   },
                   child: ListView.builder(
                     padding: const EdgeInsets.all(8.0),
-                    itemCount: sortedInventory.length,
+                    itemCount: limitedInventory.length,
                     itemBuilder: (context, index) {
-                      final item = sortedInventory[index];
+                      final item = limitedInventory[index];
                       return _buildInventoryCard(context, ref, item);
                     },
                   ),
