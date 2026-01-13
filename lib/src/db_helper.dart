@@ -270,8 +270,11 @@ class DBHelper {
 
   Future<List<InventoryProductsCount>> getInventoryProductsCounts({
     String? searchTerm,
+    DateTime? fromDate,
+    DateTime? toDate,
   }) async {
     final db = await database;
+    final dateFormat = DateFormat('yyyy-MM-dd');
     String query = '''
       SELECT 
         ipc.*,
@@ -290,11 +293,20 @@ class DBHelper {
       LEFT JOIN products p ON ipc.product_id = p.id
       LEFT JOIN warehouses w ON ipc.warehouse_id = w.id
   ''';
-    List<dynamic> args = [];
+    final whereParts = <String>[];
+    final args = <dynamic>[];
+    if (fromDate != null) {
+      whereParts.add('date(ipc.start) >= date(?)');
+      args.add(dateFormat.format(fromDate));
+    }
+    if (toDate != null) {
+      whereParts.add('date(ipc.start) <= date(?)');
+      args.add(dateFormat.format(toDate));
+    }
     if (searchTerm != null && searchTerm.isNotEmpty) {
       final searchPattern = '%$searchTerm%';
-      query += '''
-      WHERE (p.name LIKE ?
+      whereParts.add('''
+        (p.name LIKE ?
         OR p.item_number LIKE ?
         OR p.sku LIKE ?
         OR p.tag_number LIKE ?
@@ -304,8 +316,11 @@ class DBHelper {
         OR p.model LIKE ?
         OR w.name LIKE ?
         OR ipc.username LIKE ?)
-    ''';
-      args = List.filled(10, searchPattern);
+      ''');
+      args.addAll(List.filled(10, searchPattern));
+    }
+    if (whereParts.isNotEmpty) {
+      query += ' WHERE ${whereParts.join(' AND ')}';
     }
 
     query += ' ORDER BY ipc.created_at DESC';
@@ -587,6 +602,8 @@ class DBHelper {
 
   Future<List<MovementDetail>> getProviderMovements({
     String? searchTerm,
+    DateTime? fromDate,
+    DateTime? toDate,
   }) async {
     final db = await database;
     String query = '''
@@ -617,6 +634,17 @@ class DBHelper {
     ''';
 
     List<dynamic> args = [];
+    if (fromDate != null) {
+      final fromStart = DateTime(fromDate.year, fromDate.month, fromDate.day);
+      query += ' AND datetime(m.created_at) >= datetime(?)';
+      args.add(fromStart.toIso8601String());
+    }
+    if (toDate != null) {
+      final toEnd =
+          DateTime(toDate.year, toDate.month, toDate.day, 23, 59, 59, 999);
+      query += ' AND datetime(m.created_at) <= datetime(?)';
+      args.add(toEnd.toIso8601String());
+    }
     if (searchTerm != null && searchTerm.isNotEmpty) {
       final searchPattern = '%$searchTerm%';
       query += '''
@@ -630,7 +658,7 @@ class DBHelper {
         OR p.model LIKE ?
         OR m.username LIKE ?)
       ''';
-      args = List.filled(9, searchPattern);
+      args.addAll(List.filled(9, searchPattern));
     }
 
     query += ' ORDER BY m.created_at DESC';

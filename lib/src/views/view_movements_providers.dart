@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:rpsinventory/src/models/m_movement_detail.dart';
 import 'package:rpsinventory/src/providers/auth_provider.dart';
 import 'package:rpsinventory/src/providers/conduces_provider.dart';
@@ -28,7 +29,11 @@ class ViewMovementsProviders extends ConsumerStatefulWidget {
 class _ViewMovementsProvidersState
     extends ConsumerState<ViewMovementsProviders> {
   final _searchController = TextEditingController();
+  final _fromDateController = TextEditingController();
+  final _toDateController = TextEditingController();
   static const int _maxMovementsToShow = 20;
+  DateTime? _fromDate;
+  DateTime? _toDate;
 
   @override
   void initState() {
@@ -55,7 +60,40 @@ class _ViewMovementsProvidersState
   @override
   void dispose() {
     _searchController.dispose();
+    _fromDateController.dispose();
+    _toDateController.dispose();
     super.dispose();
+  }
+
+  String _formatDate(DateTime date) {
+    return DateFormat('dd/MM/yyyy').format(date);
+  }
+
+  String _formatMovementDate(DateTime date) {
+    return DateFormat('MM/dd/yyyy hh:mm:ss a').format(date);
+  }
+
+  Future<void> _pickDate({required bool isFrom}) async {
+    final now = DateTime.now();
+    final initialDate = isFrom
+        ? (_fromDate ?? now)
+        : (_toDate ?? _fromDate ?? now);
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (selected == null) return;
+    setState(() {
+      if (isFrom) {
+        _fromDate = selected;
+        _fromDateController.text = _formatDate(selected);
+      } else {
+        _toDate = selected;
+        _toDateController.text = _formatDate(selected);
+      }
+    });
   }
 
   @override
@@ -127,6 +165,96 @@ class _ViewMovementsProvidersState
                   borderRadius: BorderRadius.circular(12.0),
                 ),
               ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _fromDateController,
+                    readOnly: true,
+                    onTap: () => _pickDate(isFrom: true),
+                    decoration: InputDecoration(
+                      labelText: 'Desde',
+                      prefixIcon: const Icon(Icons.calendar_today),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.0),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _toDateController,
+                    readOnly: true,
+                    onTap: () => _pickDate(isFrom: false),
+                    decoration: InputDecoration(
+                      labelText: 'Hasta',
+                      prefixIcon: const Icon(Icons.calendar_today),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.0),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      _fromDateController.clear();
+                      _toDateController.clear();
+                      setState(() {
+                        _fromDate = null;
+                        _toDate = null;
+                      });
+                      ref.read(movementDateRangeProvider.notifier).state =
+                          const MovementDateRange();
+                    },
+                    icon: const Icon(Icons.clear),
+                    label: const Text('Limpiar'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      if (_fromDate == null && _toDate == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Selecciona al menos una fecha.'),
+                          ),
+                        );
+                        return;
+                      }
+                      if (_fromDate != null &&
+                          _toDate != null &&
+                          _fromDate!.isAfter(_toDate!)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content:
+                                Text('La fecha desde no puede ser mayor.'),
+                          ),
+                        );
+                        return;
+                      }
+                      ref.read(movementDateRangeProvider.notifier).state =
+                          MovementDateRange(from: _fromDate, to: _toDate);
+                      ref.invalidate(providerMovementsProvider);
+                    },
+                    icon: const Icon(Icons.search),
+                    label: const Text('Buscar'),
+                  ),
+                ),
+              ],
             ),
           ),
           Expanded(
@@ -226,9 +354,19 @@ class _ViewMovementsProvidersState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: Text(
-                    movement.productName ?? 'Producto no disponible',
-                    style: Theme.of(context).textTheme.titleLarge,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        movement.productName ?? 'Producto no disponible',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Fecha: ${movement.createdAt == null ? 'N/A' : _formatMovementDate(movement.createdAt!)}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),

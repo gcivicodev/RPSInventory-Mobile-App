@@ -90,5 +90,10 @@ final providerMovementsProvider =
 FutureProvider<List<MovementDetail>>((ref) async {
   final dbHelper = DBHelper.instance;
   final searchTerm = ref.watch(movementSearchQueryProvider);
-  return dbHelper.getProviderMovements(searchTerm: searchTerm);
+  final dateRange = ref.watch(movementDateRangeProvider);
+  return dbHelper.getProviderMovements(
+    searchTerm: searchTerm,
+    fromDate: dateRange.from,
+    toDate: dateRange.to,
+  );
 });

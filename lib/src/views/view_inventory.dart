@@ -22,7 +22,11 @@ class ViewInventory extends ConsumerStatefulWidget {
 
 class _ViewInventoryState extends ConsumerState<ViewInventory> {
   final _searchController = TextEditingController();
+  final _fromDateController = TextEditingController();
+  final _toDateController = TextEditingController();
   static const int _maxInventoryToShow = 20;
+  DateTime? _fromDate;
+  DateTime? _toDate;
 
   @override
   void initState() {
@@ -38,7 +42,36 @@ class _ViewInventoryState extends ConsumerState<ViewInventory> {
   @override
   void dispose() {
     _searchController.dispose();
+    _fromDateController.dispose();
+    _toDateController.dispose();
     super.dispose();
+  }
+
+  String _formatDate(DateTime date) {
+    return DateFormat('dd/MM/yyyy').format(date);
+  }
+
+  Future<void> _pickDate({required bool isFrom}) async {
+    final now = DateTime.now();
+    final initialDate = isFrom
+        ? (_fromDate ?? now)
+        : (_toDate ?? _fromDate ?? now);
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (selected == null) return;
+    setState(() {
+      if (isFrom) {
+        _fromDate = selected;
+        _fromDateController.text = _formatDate(selected);
+      } else {
+        _toDate = selected;
+        _toDateController.text = _formatDate(selected);
+      }
+    });
   }
 
   @override
@@ -112,6 +145,96 @@ class _ViewInventoryState extends ConsumerState<ViewInventory> {
               ),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _fromDateController,
+                    readOnly: true,
+                    onTap: () => _pickDate(isFrom: true),
+                    decoration: InputDecoration(
+                      labelText: 'Desde',
+                      prefixIcon: const Icon(Icons.calendar_today),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.0),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _toDateController,
+                    readOnly: true,
+                    onTap: () => _pickDate(isFrom: false),
+                    decoration: InputDecoration(
+                      labelText: 'Hasta',
+                      prefixIcon: const Icon(Icons.calendar_today),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.0),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      _fromDateController.clear();
+                      _toDateController.clear();
+                      setState(() {
+                        _fromDate = null;
+                        _toDate = null;
+                      });
+                      ref.read(inventoryDateRangeProvider.notifier).state =
+                          const InventoryDateRange();
+                    },
+                    icon: const Icon(Icons.clear),
+                    label: const Text('Limpiar'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      if (_fromDate == null && _toDate == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Selecciona al menos una fecha.'),
+                          ),
+                        );
+                        return;
+                      }
+                      if (_fromDate != null &&
+                          _toDate != null &&
+                          _fromDate!.isAfter(_toDate!)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content:
+                                Text('La fecha desde no puede ser mayor.'),
+                          ),
+                        );
+                        return;
+                      }
+                      ref.read(inventoryDateRangeProvider.notifier).state =
+                          InventoryDateRange(from: _fromDate, to: _toDate);
+                      ref.invalidate(inventoryProductsCountsProvider);
+                    },
+                    icon: const Icon(Icons.search),
+                    label: const Text('Buscar'),
+                  ),
+                ),
+              ],
+            ),
+          ),
           Expanded(
             child: inventoryAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -120,7 +243,9 @@ class _ViewInventoryState extends ConsumerState<ViewInventory> {
               data: (inventory) {
                 final filteredInventory =
                     _filterInventory(inventory, searchTerm);
-                if (filteredInventory.isEmpty) {
+                final dateFilteredInventory =
+                    _filterInventoryByDate(filteredInventory);
+                if (dateFilteredInventory.isEmpty) {
                   return const Center(
                     child: Text(
                       'No se encontraron registros de inventario.',
@@ -128,7 +253,7 @@ class _ViewInventoryState extends ConsumerState<ViewInventory> {
                     ),
                   );
                 }
-                final sortedInventory = [...filteredInventory]
+                final sortedInventory = [...dateFilteredInventory]
                   ..sort(
                     (a, b) =>
                         (b.createdAt ??
@@ -369,5 +494,34 @@ class _ViewInventoryState extends ConsumerState<ViewInventory> {
     ];
     return values.any((value) =>
         value != null && value.toLowerCase().contains(normalizedTerm));
+  }
+
+  List<InventoryProductsCount> _filterInventoryByDate(
+      List<InventoryProductsCount> inventory) {
+    if (_fromDate == null && _toDate == null) {
+      return inventory;
+    }
+    return inventory.where((item) {
+      final start = item.start;
+      if (start == null) {
+        return false;
+      }
+      final startDate = DateTime(start.year, start.month, start.day);
+      if (_fromDate != null) {
+        final fromDate =
+            DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day);
+        if (startDate.isBefore(fromDate)) {
+          return false;
+        }
+      }
+      if (_toDate != null) {
+        final toDate =
+            DateTime(_toDate!.year, _toDate!.month, _toDate!.day);
+        if (startDate.isAfter(toDate)) {
+          return false;
+        }
+      }
+      return true;
+    }).toList(growable: false);
   }
 }
