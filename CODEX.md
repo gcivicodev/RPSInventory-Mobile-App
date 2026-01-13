@@ -1,1 +1,1 @@
-git checkout dev;git add .;git commit -m "En la vista de añadir inventario cambié los dropdowns de añmacen y producto para que se pueda entrar el nombre del item y/o seleccionar un item.";git push -u origin dev;git  branch -D dev_local;git checkout -b dev_local
+git checkout dev;git add .;git commit -m "Las vistas de inventarios, movimientos y movimeintos de proveedores ahora solo cargas los últimos 20 registros.";git push -u origin dev;git  branch -D dev_local;git checkout -b dev_local

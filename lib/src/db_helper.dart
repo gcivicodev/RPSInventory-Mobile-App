@@ -513,7 +513,11 @@ class DBHelper {
     });
   }
 
-  Future<List<MovementDetail>> getMovements({String? searchTerm}) async {
+  Future<List<MovementDetail>> getMovements({
+    String? searchTerm,
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     final db = await database;
     String query = '''
       SELECT
@@ -543,6 +547,17 @@ class DBHelper {
     ''';
 
     List<dynamic> args = [];
+    if (fromDate != null) {
+      final fromStart = DateTime(fromDate.year, fromDate.month, fromDate.day);
+      query += ' AND datetime(m.created_at) >= datetime(?)';
+      args.add(fromStart.toIso8601String());
+    }
+    if (toDate != null) {
+      final toEnd =
+          DateTime(toDate.year, toDate.month, toDate.day, 23, 59, 59, 999);
+      query += ' AND datetime(m.created_at) <= datetime(?)';
+      args.add(toEnd.toIso8601String());
+    }
     if (searchTerm != null && searchTerm.isNotEmpty) {
       final searchPattern = '%$searchTerm%';
       query += '''
@@ -556,7 +571,7 @@ class DBHelper {
         OR p.model LIKE ?
         OR m.username LIKE ?)
       ''';
-      args = List.filled(9, searchPattern);
+      args.addAll(List.filled(9, searchPattern));
     }
 
     query += ' ORDER BY m.created_at DESC';

@@ -65,10 +65,25 @@ StateNotifierProvider<MovementNotifier, AsyncValue<void>>((ref) {
 
 final movementSearchQueryProvider = StateProvider<String>((ref) => '');
 
+class MovementDateRange {
+  const MovementDateRange({this.from, this.to});
+
+  final DateTime? from;
+  final DateTime? to;
+}
+
+final movementDateRangeProvider =
+    StateProvider<MovementDateRange>((ref) => const MovementDateRange());
+
 final movementsProvider = FutureProvider<List<MovementDetail>>((ref) async {
   final dbHelper = DBHelper.instance;
   final searchTerm = ref.watch(movementSearchQueryProvider);
-  return dbHelper.getMovements(searchTerm: searchTerm);
+  final dateRange = ref.watch(movementDateRangeProvider);
+  return dbHelper.getMovements(
+    searchTerm: searchTerm,
+    fromDate: dateRange.from,
+    toDate: dateRange.to,
+  );
 });
 
 final providerMovementsProvider =
