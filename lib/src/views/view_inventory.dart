@@ -12,13 +12,38 @@ import 'package:rpsinventory/src/views/view_movements_providers.dart';
 import 'package:rpsinventory/src/views/view_sync_almacen.dart';
 import 'package:rpsinventory/src/views/view_sync_carrero.dart';
 
-class ViewInventory extends ConsumerWidget {
+class ViewInventory extends ConsumerStatefulWidget {
   const ViewInventory({super.key});
   static String path = '/inventory';
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ViewInventory> createState() => _ViewInventoryState();
+}
+
+class _ViewInventoryState extends ConsumerState<ViewInventory> {
+  final _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      if (mounted) {
+        ref.read(inventorySearchQueryProvider.notifier).state =
+            _searchController.text;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final inventoryAsync = ref.watch(inventoryProductsCountsProvider);
+    final searchTerm = ref.watch(inventorySearchQueryProvider).trim();
     const primaryColor = Color(0xff0088CC);
 
     return Scaffold(
@@ -64,41 +89,70 @@ class ViewInventory extends ConsumerWidget {
           ),
         ],
       ),
-      body: inventoryAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) =>
-            Center(child: Text('Error al cargar el inventario: $err')),
-        data: (inventory) {
-          if (inventory.isEmpty) {
-            return const Center(
-              child: Text(
-                'No se encontraron registros de inventario.',
-                style: TextStyle(fontSize: 18, color: Colors.grey),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Buscar inventario...',
+                hintText: 'Buscar por producto, almacén, usuario, etc.',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                  },
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12.0),
+                ),
               ),
-            );
-          }
-          final sortedInventory = [...inventory]
-            ..sort(
-              (a, b) =>
-                  (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0))
-                      .compareTo(
-                a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
-              ),
-            );
-          return RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(inventoryProductsCountsProvider);
-            },
-            child: ListView.builder(
-              padding: const EdgeInsets.all(8.0),
-              itemCount: sortedInventory.length,
-              itemBuilder: (context, index) {
-                final item = sortedInventory[index];
-                return _buildInventoryCard(context, ref, item);
+            ),
+          ),
+          Expanded(
+            child: inventoryAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, stack) =>
+                  Center(child: Text('Error al cargar el inventario: $err')),
+              data: (inventory) {
+                final filteredInventory =
+                    _filterInventory(inventory, searchTerm);
+                if (filteredInventory.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'No se encontraron registros de inventario.',
+                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                    ),
+                  );
+                }
+                final sortedInventory = [...filteredInventory]
+                  ..sort(
+                    (a, b) =>
+                        (b.createdAt ??
+                                DateTime.fromMillisecondsSinceEpoch(0))
+                            .compareTo(
+                      a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+                    ),
+                  );
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(inventoryProductsCountsProvider);
+                  },
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(8.0),
+                    itemCount: sortedInventory.length,
+                    itemBuilder: (context, index) {
+                      final item = sortedInventory[index];
+                      return _buildInventoryCard(context, ref, item);
+                    },
+                  ),
+                );
               },
             ),
-          );
-        },
+          ),
+        ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: 2,
@@ -285,5 +339,31 @@ class ViewInventory extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  List<InventoryProductsCount> _filterInventory(
+      List<InventoryProductsCount> inventory, String searchTerm) {
+    if (searchTerm.isEmpty) {
+      return inventory;
+    }
+    return inventory.where((item) => _matchesSearch(item, searchTerm)).toList();
+  }
+
+  bool _matchesSearch(InventoryProductsCount item, String searchTerm) {
+    final normalizedTerm = searchTerm.toLowerCase();
+    final values = [
+      item.product?.name,
+      item.product?.itemNumber,
+      item.product?.sku,
+      item.product?.tagNumber,
+      item.product?.barcodeNumber,
+      item.product?.size,
+      item.product?.color,
+      item.product?.model,
+      item.warehouse?.name,
+      item.username,
+    ];
+    return values.any((value) =>
+        value != null && value.toLowerCase().contains(normalizedTerm));
   }
 }

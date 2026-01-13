@@ -1,1 +1,1 @@
-git checkout dev;git add .;git commit -m "commit";git push -u origin dev;git  branch -D dev_local;git checkout -b dev_local
+git checkout dev;git add .;git commit -m "Buscador en vista de lista de inventarios registrados.";git push -u origin dev;git  branch -D dev_local;git checkout -b dev_local

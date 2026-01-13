@@ -268,21 +268,49 @@ class DBHelper {
     ''');
   }
 
-  Future<List<InventoryProductsCount>> getInventoryProductsCounts() async {
+  Future<List<InventoryProductsCount>> getInventoryProductsCounts({
+    String? searchTerm,
+  }) async {
     final db = await database;
-    const query = '''
-    SELECT 
-      ipc.*,
-      p.id as product_table_id,
-      p.name as product_name, p.sku, p.barcode_number, p.size, p.color, p.model,
-      w.id as warehouse_table_id,
-      w.name as warehouse_name
-    FROM inventory_products_counts ipc
-    LEFT JOIN products p ON ipc.product_id = p.id
-    LEFT JOIN warehouses w ON ipc.warehouse_id = w.id
-    ORDER BY ipc.created_at DESC
+    String query = '''
+      SELECT 
+        ipc.*,
+        p.id as product_table_id,
+        p.name as product_name,
+        p.item_number,
+        p.sku,
+        p.tag_number,
+        p.barcode_number,
+        p.size,
+        p.color,
+        p.model,
+        w.id as warehouse_table_id,
+        w.name as warehouse_name
+      FROM inventory_products_counts ipc
+      LEFT JOIN products p ON ipc.product_id = p.id
+      LEFT JOIN warehouses w ON ipc.warehouse_id = w.id
   ''';
-    final List<Map<String, dynamic>> maps = await db.rawQuery(query);
+    List<dynamic> args = [];
+    if (searchTerm != null && searchTerm.isNotEmpty) {
+      final searchPattern = '%$searchTerm%';
+      query += '''
+      WHERE (p.name LIKE ?
+        OR p.item_number LIKE ?
+        OR p.sku LIKE ?
+        OR p.tag_number LIKE ?
+        OR p.barcode_number LIKE ?
+        OR p.size LIKE ?
+        OR p.color LIKE ?
+        OR p.model LIKE ?
+        OR w.name LIKE ?
+        OR ipc.username LIKE ?)
+    ''';
+      args = List.filled(10, searchPattern);
+    }
+
+    query += ' ORDER BY ipc.created_at DESC';
+
+    final List<Map<String, dynamic>> maps = await db.rawQuery(query, args);
 
     if (maps.isNotEmpty) {
       return maps.map((map) {
@@ -292,7 +320,9 @@ class DBHelper {
           final productData = {
             'id': map['product_table_id'],
             'name': map['product_name'],
+            'item_number': map['item_number'],
             'sku': map['sku'],
+            'tag_number': map['tag_number'],
             'barcode_number': map['barcode_number'],
             'size': map['size'],
             'color': map['color'],
