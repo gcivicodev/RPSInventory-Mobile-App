@@ -1,1 +1,1 @@
-git checkout dev;git add .;git commit -m "En las vistas movimientos, movimientos de proveedores, y en la de inventarios, se añadió búsqueda por rango de fecha.";git push -u origin dev;git  branch -D dev_local;git checkout -b dev_local
+git checkout dev;git add .;git commit -m "Ajustes en sincronización de usuario tipo almacen pues no estaba sincronizando los cambios de local a server.";git push -u origin dev;git  branch -D dev_local;git checkout -b dev_local

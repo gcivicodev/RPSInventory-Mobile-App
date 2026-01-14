@@ -758,9 +758,24 @@ class DBHelper {
     return await db.query('conduce_notes');
   }
 
-  Future<List<Map<String, dynamic>>> getMovementsForSync() async {
+  Future<List<Map<String, dynamic>>> getMovementsForSync({
+    String? lastSync,
+  }) async {
     final db = await database;
-    return await db.query('movements');
+    if (lastSync == null || lastSync.isEmpty) {
+      return await db.query(
+        'movements',
+        where: 'local_id IS NOT NULL',
+      );
+    }
+    return await db.query(
+      'movements',
+      where:
+          '(local_id IS NOT NULL OR '
+          'datetime(updated_at) > datetime(?, \'-5 minutes\') OR '
+          'datetime(created_at) > datetime(?, \'-5 minutes\'))',
+      whereArgs: [lastSync, lastSync],
+    );
   }
 
   Future<void> syncMovementFromServer(Movement movement) async {
@@ -810,9 +825,24 @@ class DBHelper {
     });
   }
 
-  Future<List<Map<String, dynamic>>> getInventoryProductsCountsForSync() async {
+  Future<List<Map<String, dynamic>>> getInventoryProductsCountsForSync({
+    String? lastSync,
+  }) async {
     final db = await database;
-    return await db.query('inventory_products_counts');
+    if (lastSync == null || lastSync.isEmpty) {
+      return await db.query(
+        'inventory_products_counts',
+        where: 'local_id IS NOT NULL',
+      );
+    }
+    return await db.query(
+      'inventory_products_counts',
+      where:
+          '(local_id IS NOT NULL OR '
+          'datetime(updated_at) > datetime(?, \'-5 minutes\') OR '
+          'datetime(created_at) > datetime(?, \'-5 minutes\'))',
+      whereArgs: [lastSync, lastSync],
+    );
   }
 
   Future<void> syncInventoryCountFromServer(
@@ -1308,9 +1338,13 @@ class DBHelper {
     InventoryProductsCount inventoryCount,
   ) async {
     final db = await database;
+    final now = DateTime.now().toIso8601String();
+    final data = inventoryCount.toMap();
+    data['created_at'] ??= now;
+    data['updated_at'] ??= now;
     final id = await db.insert(
       'inventory_products_counts',
-      inventoryCount.toMap(),
+      data,
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
     await db.update(

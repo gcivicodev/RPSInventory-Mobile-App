@@ -106,7 +106,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
   }) async {
     _lastServerSync = null;
     state = SyncState();
-    await _uploadAlmacenData(token);
+    await _uploadAlmacenData(token, lastSync: lastSync);
 
     if (state.uploadStatus == SyncStatus.completed) {
       state = state.copyWith(isUploading: false);
@@ -189,30 +189,38 @@ class SyncNotifier extends StateNotifier<SyncState> {
     }
   }
 
-  Future<void> _uploadAlmacenData(String token) async {
+  Future<void> _uploadAlmacenData(
+    String token, {
+    String? lastSync,
+  }) async {
     state = state.copyWith(
       uploadStatus: SyncStatus.inProgress,
       errorMessage: null,
       clearErrorMessage: true,
     );
     try {
-      final movementsToSync = await dbHelper.getMovementsForSync();
-      final inventoryToSync = await dbHelper
-          .getInventoryProductsCountsForSync();
+      final movementsToSync = await dbHelper.getMovementsForSync(
+        lastSync: lastSync,
+      );
+      final inventoryToSync = await dbHelper.getInventoryProductsCountsForSync(
+        lastSync: lastSync,
+      );
+      final sanitizedMovements = _sanitizeLocalIds(movementsToSync);
+      final sanitizedInventory = _sanitizeLocalIds(inventoryToSync);
 
-      if (movementsToSync.isNotEmpty) {
+      if (sanitizedMovements.isNotEmpty) {
         await _postData(
           endpoint: 'sync_update_movements_almacen',
           token: token,
-          body: {'token': token, 'movements': movementsToSync},
+          body: {'token': token, 'movements': sanitizedMovements},
         );
       }
 
-      if (inventoryToSync.isNotEmpty) {
+      if (sanitizedInventory.isNotEmpty) {
         await _postData(
           endpoint: 'sync_update_inventory_almacen',
           token: token,
-          body: {'token': token, 'inventorys': inventoryToSync},
+          body: {'token': token, 'inventorys': sanitizedInventory},
         );
       }
 
@@ -223,6 +231,19 @@ class SyncNotifier extends StateNotifier<SyncState> {
         errorMessage: "Error en la subida: ${e.toString()}",
       );
     }
+  }
+
+  List<Map<String, dynamic>> _sanitizeLocalIds(
+    List<Map<String, dynamic>> rows,
+  ) {
+    return rows.map((row) {
+      final data = Map<String, dynamic>.from(row);
+      final localId = data['local_id'];
+      if (localId != null && data['id'] == localId) {
+        data['id'] = null;
+      }
+      return data;
+    }).toList();
   }
 
   Future<void> _postData({

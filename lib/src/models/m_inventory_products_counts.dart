@@ -70,7 +70,7 @@ class InventoryProductsCount {
       count: json["count"],
       start: _parseDate(json["start"]),
       end: _parseDate(json["end"]),
-      localId: _parseInt(json["local_id"] ?? json["id"]),
+      localId: _parseInt(json["local_id"]),
       username: json["username"],
       product:
       json['product'] != null ? Product.fromMap(json['product']) : null,
