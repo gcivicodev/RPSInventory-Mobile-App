@@ -25,11 +25,24 @@ class _AddMovementProviderViewState extends ConsumerState<AddMovementProviderVie
   Warehouse? _selectedDestinationWarehouse;
   Product? _selectedProduct;
   final _quantityController = TextEditingController();
+  TextEditingController? _productSearchController;
 
   @override
   void dispose() {
     _quantityController.dispose();
+    _productSearchController?.dispose();
     super.dispose();
+  }
+
+  String _productLabel(Product product) {
+    final parts = [
+      product.name,
+      product.sku,
+      product.color,
+      product.model,
+      product.size,
+    ].where((part) => part != null && part.toString().isNotEmpty);
+    return parts.isEmpty ? 'N/A' : parts.join(' - ');
   }
 
   Future<void> _scanBarcode() async {
@@ -69,6 +82,9 @@ class _AddMovementProviderViewState extends ConsumerState<AddMovementProviderVie
         if (productInList != null) {
           setState(() {
             _selectedProduct = productInList;
+            if (_productSearchController != null) {
+              _productSearchController!.text = _productLabel(productInList!);
+            }
           });
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -235,33 +251,58 @@ class _AddMovementProviderViewState extends ConsumerState<AddMovementProviderVie
                 loading: () => const CircularProgressIndicator(),
                 error: (err, stack) => Text('Error: $err'),
                 data: (products) {
-                  return DropdownButtonFormField<Product>(
-                    value: _selectedProduct,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Producto',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: products.map((Product product) {
-                      final sku = product.sku ?? 'N/A';
-                      final color = product.color ?? 'N/A';
-                      final model = product.model ?? 'N/A';
-                      final size = product.size ?? 'N/A';
-                      return DropdownMenuItem<Product>(
-                        value: product,
-                        child: Text(
-                          '${product.name ?? 'N/A'} - ($sku) - $color - $model - $size',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (Product? newValue) {
-                      setState(() {
-                        _selectedProduct = newValue;
+                  return Autocomplete<Product>(
+                    displayStringForOption: _productLabel,
+                    optionsBuilder: (textEditingValue) {
+                      final query = textEditingValue.text.trim().toLowerCase();
+                      if (query.isEmpty) {
+                        return products;
+                      }
+                      return products.where((product) {
+                        final haystack = _productLabel(product).toLowerCase();
+                        return haystack.contains(query);
                       });
                     },
-                    validator: (value) =>
-                    value == null ? 'Campo requerido' : null,
+                    onSelected: (product) {
+                      setState(() {
+                        _selectedProduct = product;
+                      });
+                    },
+                    fieldViewBuilder: (
+                      context,
+                      textEditingController,
+                      focusNode,
+                      onFieldSubmitted,
+                    ) {
+                      if (_productSearchController != textEditingController) {
+                        _productSearchController = textEditingController;
+                        if ((_productSearchController?.text.isEmpty ?? true) &&
+                            _selectedProduct != null) {
+                          _productSearchController!.text =
+                              _productLabel(_selectedProduct!);
+                        }
+                      }
+                      return TextFormField(
+                        controller: textEditingController,
+                        focusNode: focusNode,
+                        decoration: const InputDecoration(
+                          labelText: 'Producto',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (_) => _selectedProduct == null
+                            ? 'Seleccione un producto'
+                            : null,
+                        onChanged: (value) {
+                          if (_selectedProduct != null &&
+                              value != _productLabel(_selectedProduct!)) {
+                            setState(() {
+                              _selectedProduct = null;
+                            });
+                          }
+                        },
+                        onFieldSubmitted: (_) => onFieldSubmitted(),
+                      );
+                    },
                   );
                 },
               ),

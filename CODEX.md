@@ -1,1 +1,0 @@
-git checkout dev;git add .;git commit -m "Ajustes en sincronización de usuario tipo almacen pues no estaba sincronizando los cambios de local a server.";git push -u origin dev;git  branch -D dev_local;git checkout -b dev_local
