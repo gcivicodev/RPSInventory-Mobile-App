@@ -17,3 +17,5 @@ Este archivo es la fuente de verdad para el seguimiento de cambios, nuevas funci
 | :--- | :--- | :--- | :--- | :--- |
 | 2026-03-18 | Inicialización de AGENTS.md | `AGENTS.md` | Creación del protocolo de documentación y tabla de seguimiento. | Finalizado |
 | 2026-03-18 | Documentación Técnica README | `README.md` | Actualización completa del README con el contexto técnico del proyecto (stack, arquitectura, modelos de datos). | Finalizado |
+| 2026-03-18 | Botón de Formularios (WebView) | `view_conduce_detail.dart`, `view_conduce_forms.dart`, `pubspec.yaml` | Implementación de un botón "Formularios" que abre un WebView con headers personalizados (`X-User-Token`, `X-App-Data-PPN`, `X-App-Data-Conduce`). | Finalizado |
+| 2026-03-18 | Actualización de URL WebView | `view_conduce_forms.dart` | Cambio de la URL de prueba por la definitiva `https://rpsinventory.com/public/forms-links`. | Finalizado |

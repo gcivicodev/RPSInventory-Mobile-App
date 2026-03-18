@@ -7,6 +7,7 @@ import 'package:rpsinventory/src/providers/conduce_provider.dart';
 import 'package:rpsinventory/src/views/view_update_conduce.dart';
 import 'package:rpsinventory/src/views/view_update_conduce_detail.dart';
 import 'package:rpsinventory/src/views/view_update_note.dart';
+import 'package:rpsinventory/src/views/view_conduce_forms.dart';
 
 
 class ViewConduceDetail extends ConsumerStatefulWidget {
@@ -113,6 +114,29 @@ class _ViewConduceDetailState extends ConsumerState<ViewConduceDetail> {
                     ),
                   ),
                 ),
+              Padding(
+                padding: const EdgeInsets.only(right: 12.0),
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ViewConduceForms(
+                          conduceId: widget.conduceId,
+                          patientPlanNumber: conduceData.patientPlanNumber ?? 'N/A',
+                        ),
+                      ),
+                    );
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text(
+                    'Formularios',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
             ],
           ),
           body: SingleChildScrollView(
