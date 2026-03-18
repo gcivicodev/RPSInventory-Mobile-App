@@ -22,3 +22,4 @@ Este archivo es la fuente de verdad para el seguimiento de cambios, nuevas funci
 | 2026-03-18 | Estado de Conduce en Actualización | `view_update_conduce.dart` | Cambio del estado de 'Completado' a 'Actualizado' al guardar cambios en el conduce. | Finalizado |
 | 2026-03-18 | Condición de Fecha de Completado | `db_helper.dart` | Se añadió 'Actualizado' a la condición para asignar `completed_at` en `addOrUpdateConduce`. | Finalizado |
 | 2026-03-18 | Lógica updateConduceStatus | `db_helper.dart` | Se actualizó `updateConduceStatus` para usar 'Actualizado' por defecto y considerar 'Completado' en la fecha de cierre. | Finalizado |
+| 2026-03-18 | Protección de Status en Sync | `db_helper.dart`, `sync_provider.dart` | Implementación de protección para que el status 'Pendiente' no sea sobreescrito por la sincronización hasta que cambie a 'Actualizado'. | Finalizado |

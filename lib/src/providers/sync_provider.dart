@@ -457,7 +457,10 @@ class SyncNotifier extends StateNotifier<SyncState> {
         _recordServerSync(_extractServerDate(response.headers));
         final List<dynamic> conduceList = json.decode(response.body);
         for (var conduceJson in conduceList) {
-          await dbHelper.addOrUpdateConduce(Conduce.fromJson(conduceJson));
+          await dbHelper.addOrUpdateConduce(
+            Conduce.fromJson(conduceJson),
+            fromSync: true,
+          );
         }
         state = state.copyWith(conducesStatus: SyncStatus.completed);
       } else {

@@ -1011,8 +1011,31 @@ class DBHelper {
 
     final conduceMap = conduce.toMap();
 
-    if (conduceMap['status'] == 'Completado' ||
-        conduceMap['status'] == 'Actualizado') {
+    if (fromSync) {
+      final List<Map<String, dynamic>> existing = await db.query(
+        'conduces',
+        columns: ['status'],
+        where: 'id = ?',
+        whereArgs: [conduce.id],
+      );
+
+      if (existing.isNotEmpty) {
+        final String? currentLocalStatus =
+            (existing.first['status'] as String?)?.toLowerCase();
+
+        // Si el status local es 'pendiente', ignoramos el status que venga de la sincronización.
+        // Solo permitimos que la sincronización cambie el status si el local ya es 'actualizado' (o cualquier otro que no sea pendiente).
+        if (currentLocalStatus == 'pendiente') {
+          conduceMap['status'] = existing.first['status'];
+        }
+      }
+    }
+
+    // Solo asignamos completed_at automáticamente si el status es Completado o Actualizado y NO viene de la sincronización.
+    // Si viene de la sincronización, respetamos el valor de completed_at que traiga el objeto Conduce (del servidor).
+    if (!fromSync &&
+        (conduceMap['status'] == 'Completado' ||
+            conduceMap['status'] == 'Actualizado')) {
       conduceMap['completed_at'] = DateTime.now().toIso8601String();
     }
 
