@@ -111,7 +111,8 @@ class ViewConduces extends ConsumerWidget {
   }
 
   Widget _buildConduceCard(BuildContext context, WidgetRef ref, Conduce conduce, Color primaryColor) {
-    final statusColor = (conduce.status?.toLowerCase() == 'completado')
+    final statusColor = (conduce.status?.toLowerCase() == 'completado' ||
+            conduce.status?.toLowerCase() == 'actualizado')
         ? Colors.green.shade700
         : Colors.red.shade700;
 

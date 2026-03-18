@@ -175,7 +175,7 @@ class _ViewUpdateConduceState extends ConsumerState<ViewUpdateConduce> {
           payMethod: _payMethod,
           guaranteeCommitment: _guaranteeCommitment ? 1 : 0,
           certificationOfInstructions: _certificationOfInstructions ? 1 : 0,
-          status: 'Completado',
+          status: 'Actualizado',
           patientSignature: patientSignatureBase64,
           employeeSignature: employeeSignatureBase64,
           patientSignatureDatetime:

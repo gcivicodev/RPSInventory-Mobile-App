@@ -1011,7 +1011,8 @@ class DBHelper {
 
     final conduceMap = conduce.toMap();
 
-    if (conduceMap['status'] == 'Completado') {
+    if (conduceMap['status'] == 'Completado' ||
+        conduceMap['status'] == 'Actualizado') {
       conduceMap['completed_at'] = DateTime.now().toIso8601String();
     }
 
@@ -1139,11 +1140,11 @@ class DBHelper {
 
     final currentStatus = conduceMaps.first['status'] as String?;
     final newStatus = (currentStatus?.toLowerCase() == 'pendiente')
-        ? 'Completado'
+        ? 'Actualizado'
         : 'Pendiente';
 
     final Map<String, dynamic> updateData = {'status': newStatus};
-    if (newStatus == 'Completado') {
+    if (newStatus == 'Actualizado' || newStatus == 'Completado') {
       updateData['completed_at'] = DateTime.now().toIso8601String();
     } else {
       updateData['completed_at'] = null;

@@ -606,7 +606,8 @@ class _ViewConduceDetailState extends ConsumerState<ViewConduceDetail> {
 
   Widget _buildStatusChip(String? status) {
     final statusText = status ?? 'N/A';
-    final statusColor = (statusText.toLowerCase() == 'completado')
+    final statusColor = (statusText.toLowerCase() == 'completado' ||
+            statusText.toLowerCase() == 'actualizado')
         ? Colors.green.shade700
         : Colors.red.shade700;
 
