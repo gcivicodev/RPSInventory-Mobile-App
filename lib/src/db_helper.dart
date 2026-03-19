@@ -1023,20 +1023,24 @@ class DBHelper {
         final String? currentLocalStatus =
             (existing.first['status'] as String?)?.toLowerCase();
 
-        // Si el status local es 'pendiente', ignoramos el status que venga de la sincronización.
+        // Si el status local es 'pendiente', ignoramos el status y el completed_at que venga de la sincronización.
         // Solo permitimos que la sincronización cambie el status si el local ya es 'actualizado' (o cualquier otro que no sea pendiente).
         if (currentLocalStatus == 'pendiente') {
           conduceMap['status'] = existing.first['status'];
+          conduceMap['completed_at'] = existing.first['completed_at'];
         }
       }
     }
 
-    // Solo asignamos completed_at automáticamente si el status es Completado o Actualizado y NO viene de la sincronización.
+    // Solo asignamos completed_at automáticamente si el status es Completado y NO viene de la sincronización.
+    // Si el status es Actualizado o Pendiente, el completed_at debe ser null.
     // Si viene de la sincronización, respetamos el valor de completed_at que traiga el objeto Conduce (del servidor).
-    if (!fromSync &&
-        (conduceMap['status'] == 'Completado' ||
-            conduceMap['status'] == 'Actualizado')) {
-      conduceMap['completed_at'] = DateTime.now().toIso8601String();
+    if (!fromSync) {
+      if (conduceMap['status'] == 'Completado') {
+        conduceMap['completed_at'] = DateTime.now().toIso8601String();
+      } else {
+        conduceMap['completed_at'] = null;
+      }
     }
 
     batch.insert(
@@ -1167,7 +1171,7 @@ class DBHelper {
         : 'Pendiente';
 
     final Map<String, dynamic> updateData = {'status': newStatus};
-    if (newStatus == 'Actualizado' || newStatus == 'Completado') {
+    if (newStatus == 'Completado') {
       updateData['completed_at'] = DateTime.now().toIso8601String();
     } else {
       updateData['completed_at'] = null;
