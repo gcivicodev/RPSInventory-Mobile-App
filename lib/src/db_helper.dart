@@ -674,7 +674,10 @@ class DBHelper {
 
   Future<List<Map<String, dynamic>>> getConducesForSync() async {
     final db = await database;
-    return await db.query('conduces');
+    return await db.query(
+      'conduces',
+      where: "status IS NULL OR status != 'Completado'",
+    );
   }
 
   Future<void> _createDeductiblesTable(Database db) async {
@@ -738,6 +741,10 @@ class DBHelper {
     final db = await database;
     var where = 'product_id IS NOT NULL AND product_id > 0 '
         'AND warehouse_id IS NOT NULL AND warehouse_id > 0';
+
+    // No sincronizamos detalles de conduces que ya están completados localmente
+    where += " AND conduce_id IN (SELECT id FROM conduces WHERE status IS NULL OR status != 'Completado')";
+
     List<Object?>? whereArgs;
 
     if (lastSync != null && lastSync.isNotEmpty) {
@@ -755,7 +762,11 @@ class DBHelper {
 
   Future<List<Map<String, dynamic>>> getConduceNotesForSync() async {
     final db = await database;
-    return await db.query('conduce_notes');
+    return await db.query(
+      'conduce_notes',
+      where:
+          "conduce_id IN (SELECT id FROM conduces WHERE status IS NULL OR status != 'Completado')",
+    );
   }
 
   Future<List<Map<String, dynamic>>> getMovementsForSync({
@@ -1082,9 +1093,46 @@ class DBHelper {
     await batch.commit(noResult: true);
   }
 
-  Future<List<Conduce>> getConduces() async {
+  Future<List<Conduce>> getConduces({
+    DateTime? fromDate,
+    DateTime? toDate,
+    String? status,
+  }) async {
     final db = await instance.database;
-    final List<Map<String, dynamic>> conduceMaps = await db.query('conduces');
+
+    String? where;
+    List<dynamic>? whereArgs;
+
+    List<String> conditions = [];
+    List<dynamic> args = [];
+
+    final dateFormat = DateFormat('yyyy-MM-dd');
+
+    if (fromDate != null) {
+      conditions.add("date(service_date) >= date(?)");
+      args.add(dateFormat.format(fromDate));
+    }
+
+    if (toDate != null) {
+      conditions.add("date(service_date) <= date(?)");
+      args.add(dateFormat.format(toDate));
+    }
+
+    if (status != null && status != 'Todos') {
+      conditions.add("status = ?");
+      args.add(status);
+    }
+
+    if (conditions.isNotEmpty) {
+      where = conditions.join(" AND ");
+      whereArgs = args;
+    }
+
+    final List<Map<String, dynamic>> conduceMaps = await db.query(
+      'conduces',
+      where: where,
+      whereArgs: whereArgs,
+    );
     final List<Conduce> conduces = [];
 
     for (var conduceMap in conduceMaps) {

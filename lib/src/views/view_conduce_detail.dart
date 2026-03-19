@@ -114,29 +114,30 @@ class _ViewConduceDetailState extends ConsumerState<ViewConduceDetail> {
                     ),
                   ),
                 ),
-              Padding(
-                padding: const EdgeInsets.only(right: 12.0),
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ViewConduceForms(
-                          conduceId: widget.conduceId,
-                          patientPlanNumber: conduceData.patientPlanNumber ?? 'N/A',
+              if (conduceData.status?.toLowerCase() != 'completado')
+                Padding(
+                  padding: const EdgeInsets.only(right: 12.0),
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ViewConduceForms(
+                            conduceId: widget.conduceId,
+                            patientPlanNumber: conduceData.patientPlanNumber ?? 'N/A',
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text(
-                    'Formularios',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                      );
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text(
+                      'Formularios',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           body: SingleChildScrollView(
